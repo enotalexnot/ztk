@@ -1,8 +1,9 @@
 import { 
-  users, products, categories, news, articles, inquiries,
+  users, products, categories, subcategories, news, articles, inquiries,
   type User, type InsertUser,
   type Product, type InsertProduct,
   type Category, type InsertCategory,
+  type Subcategory, type InsertSubcategory,
   type News, type InsertNews,
   type Article, type InsertArticle,
   type Inquiry, type InsertInquiry
@@ -18,12 +19,19 @@ export interface IStorage {
   getProducts(): Promise<Product[]>;
   getProduct(id: number): Promise<Product | undefined>;
   getProductsByCategory(categoryId: number): Promise<Product[]>;
+  getProductsBySubcategory(subcategoryId: number): Promise<Product[]>;
   createProduct(product: InsertProduct): Promise<Product>;
 
   // Categories
   getCategories(): Promise<Category[]>;
   getCategory(id: number): Promise<Category | undefined>;
   createCategory(category: InsertCategory): Promise<Category>;
+
+  // Subcategories
+  getSubcategories(): Promise<Subcategory[]>;
+  getSubcategoriesByCategory(categoryId: number): Promise<Subcategory[]>;
+  getSubcategory(id: number): Promise<Subcategory | undefined>;
+  createSubcategory(subcategory: InsertSubcategory): Promise<Subcategory>;
 
   // News
   getNews(): Promise<News[]>;
@@ -44,12 +52,14 @@ export class MemStorage implements IStorage {
   private users: Map<number, User>;
   private products: Map<number, Product>;
   private categories: Map<number, Category>;
+  private subcategories: Map<number, Subcategory>;
   private news: Map<number, News>;
   private articles: Map<number, Article>;
   private inquiries: Map<number, Inquiry>;
   private currentUserId: number;
   private currentProductId: number;
   private currentCategoryId: number;
+  private currentSubcategoryId: number;
   private currentNewsId: number;
   private currentArticleId: number;
   private currentInquiryId: number;
@@ -58,12 +68,14 @@ export class MemStorage implements IStorage {
     this.users = new Map();
     this.products = new Map();
     this.categories = new Map();
+    this.subcategories = new Map();
     this.news = new Map();
     this.articles = new Map();
     this.inquiries = new Map();
     this.currentUserId = 1;
     this.currentProductId = 1;
     this.currentCategoryId = 1;
+    this.currentSubcategoryId = 1;
     this.currentNewsId = 1;
     this.currentArticleId = 1;
     this.currentInquiryId = 1;
@@ -84,17 +96,35 @@ export class MemStorage implements IStorage {
       this.currentCategoryId = Math.max(this.currentCategoryId, cat.id + 1);
     });
 
-    // Seed products
+    // Seed subcategories
+    const subcategoriesData = [
+      { id: 1, name: "Высоковольтное оборудование", categoryId: 1, description: "Высоковольтные разъединители, выключатели" },
+      { id: 2, name: "Низковольтное оборудование", categoryId: 1, description: "Автоматические выключатели, контакторы" },
+      { id: 3, name: "Трансформаторы", categoryId: 1, description: "Силовые и измерительные трансформаторы" },
+      { id: 4, name: "Компрессоры", categoryId: 2, description: "Винтовые и поршневые компрессоры" },
+      { id: 5, name: "Пескоструйное оборудование", categoryId: 2, description: "Пескоструйные аппараты и камеры" },
+      { id: 6, name: "Тяговые аккумуляторы", categoryId: 3, description: "Для складской техники" },
+      { id: 7, name: "Стационарные аккумуляторы", categoryId: 3, description: "Для ИБП и электростанций" },
+      { id: 8, name: "Зарядные устройства", categoryId: 3, description: "Для всех типов аккумуляторов" },
+    ];
+
+    subcategoriesData.forEach(sub => {
+      this.subcategories.set(sub.id, sub);
+      this.currentSubcategoryId = Math.max(this.currentSubcategoryId, sub.id + 1);
+    });
+
+    // Seed products with extended fields
     const products = [
-      { id: 1, name: "Зарядные устройства для АКБ", description: "Для кислотных, щелочных и литиевых АКБ", categoryId: 3, price: "По запросу", imageUrl: "https://images.unsplash.com/photo-1609770231080-e321deccc34c?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=300", featured: true },
-      { id: 2, name: "АКБ для складской техники", description: "Погрузчики, штабелеры, электрокары", categoryId: 3, price: "По запросу", imageUrl: "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=300", featured: true },
-      { id: 3, name: "Стационарные аккумуляторы", description: "Для электростанций и ИБП", categoryId: 3, price: "По запросу", imageUrl: "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=300", featured: true },
-      { id: 4, name: "Компрессорное оборудование", description: "Промышленные компрессоры", categoryId: 2, price: "По запросу", imageUrl: "https://images.unsplash.com/photo-1581092921461-eab62e97a780?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=300", featured: false },
-      { id: 5, name: "Электротехническое оборудование", description: "Промышленное электрооборудование", categoryId: 1, price: "По запросу", imageUrl: "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=300", featured: false },
+      { id: 1, name: "Зарядные устройства для АКБ", description: "Для кислотных, щелочных и литиевых АКБ", categoryId: 3, subcategoryId: 8, price: "По запросу", imageUrl: "https://images.unsplash.com/photo-1609770231080-e321deccc34c?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=300", featured: true, model: "ЗУ-24-50", brand: "ЭТК", specifications: "24В, 50А, автоматический режим" },
+      { id: 2, name: "АКБ для складской техники", description: "Погрузчики, штабелеры, электрокары", categoryId: 3, subcategoryId: 6, price: "По запросу", imageUrl: "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=300", featured: true, model: "ТНЖ-300", brand: "Тюмень", specifications: "24В, 300Ач, никель-железный" },
+      { id: 3, name: "Стационарные аккумуляторы", description: "Для электростанций и ИБП", categoryId: 3, subcategoryId: 7, price: "По запросу", imageUrl: "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=300", featured: true, model: "СК-12-100", brand: "Курск", specifications: "12В, 100Ач, свинцово-кислотный" },
+      { id: 4, name: "Высоковольтный разъединитель", description: "Наружной установки 35кВ", categoryId: 1, subcategoryId: 1, price: "По запросу", imageUrl: "https://images.unsplash.com/photo-1581092921461-eab62e97a780?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=300", featured: false, model: "РНД-35", brand: "Электроаппарат", specifications: "35кВ, 630А, наружная установка" },
+      { id: 5, name: "Автоматический выключатель", description: "Низковольтный промышленный", categoryId: 1, subcategoryId: 2, price: "По запросу", imageUrl: "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=300", featured: false, model: "ВА55-43", brand: "Контактор", specifications: "380В, 1000А, электромагнитный расцепитель" },
+      { id: 6, name: "Винтовой компрессор", description: "Промышленный маслозаполненный", categoryId: 2, subcategoryId: 4, price: "По запросу", imageUrl: "https://images.unsplash.com/photo-1581092921461-eab62e97a780?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=300", featured: false, model: "ВК-22", brand: "Компрессор", specifications: "22кВт, 3.8м³/мин, 8бар" },
     ];
 
     products.forEach(prod => {
-      this.products.set(prod.id, prod);
+      this.products.set(prod.id, { ...prod, description: prod.description || null, price: prod.price || null, imageUrl: prod.imageUrl || null, featured: prod.featured || null, model: prod.model || null, brand: prod.brand || null, specifications: prod.specifications || null, subcategoryId: prod.subcategoryId || null });
       this.currentProductId = Math.max(this.currentProductId, prod.id + 1);
     });
 
@@ -106,7 +136,7 @@ export class MemStorage implements IStorage {
     ];
 
     newsItems.forEach(item => {
-      this.news.set(item.id, item);
+      this.news.set(item.id, { ...item, imageUrl: item.imageUrl || null, excerpt: item.excerpt || null, publishedAt: item.publishedAt || null });
       this.currentNewsId = Math.max(this.currentNewsId, item.id + 1);
     });
 
@@ -117,7 +147,7 @@ export class MemStorage implements IStorage {
     ];
 
     articlesItems.forEach(item => {
-      this.articles.set(item.id, item);
+      this.articles.set(item.id, { ...item, imageUrl: item.imageUrl || null, excerpt: item.excerpt || null, publishedAt: item.publishedAt || null });
       this.currentArticleId = Math.max(this.currentArticleId, item.id + 1);
     });
   }
