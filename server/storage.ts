@@ -181,9 +181,13 @@ export class MemStorage implements IStorage {
     return Array.from(this.products.values()).filter(product => product.categoryId === categoryId);
   }
 
+  async getProductsBySubcategory(subcategoryId: number): Promise<Product[]> {
+    return Array.from(this.products.values()).filter(product => product.subcategoryId === subcategoryId);
+  }
+
   async createProduct(insertProduct: InsertProduct): Promise<Product> {
     const id = this.currentProductId++;
-    const product: Product = { ...insertProduct, id };
+    const product: Product = { ...insertProduct, id, brand: insertProduct.brand || null, description: insertProduct.description || null, subcategoryId: insertProduct.subcategoryId || null, price: insertProduct.price || null, imageUrl: insertProduct.imageUrl || null, featured: insertProduct.featured || null, specifications: insertProduct.specifications || null, model: insertProduct.model || null };
     this.products.set(id, product);
     return product;
   }
@@ -199,9 +203,29 @@ export class MemStorage implements IStorage {
 
   async createCategory(insertCategory: InsertCategory): Promise<Category> {
     const id = this.currentCategoryId++;
-    const category: Category = { ...insertCategory, id };
+    const category: Category = { ...insertCategory, id, description: insertCategory.description || null, icon: insertCategory.icon || null };
     this.categories.set(id, category);
     return category;
+  }
+
+  // Subcategory methods
+  async getSubcategories(): Promise<Subcategory[]> {
+    return Array.from(this.subcategories.values());
+  }
+
+  async getSubcategoriesByCategory(categoryId: number): Promise<Subcategory[]> {
+    return Array.from(this.subcategories.values()).filter(sub => sub.categoryId === categoryId);
+  }
+
+  async getSubcategory(id: number): Promise<Subcategory | undefined> {
+    return this.subcategories.get(id);
+  }
+
+  async createSubcategory(insertSubcategory: InsertSubcategory): Promise<Subcategory> {
+    const id = this.currentSubcategoryId++;
+    const subcategory: Subcategory = { ...insertSubcategory, id, description: insertSubcategory.description || null };
+    this.subcategories.set(id, subcategory);
+    return subcategory;
   }
 
   // News methods
@@ -217,7 +241,7 @@ export class MemStorage implements IStorage {
 
   async createNews(insertNews: InsertNews): Promise<News> {
     const id = this.currentNewsId++;
-    const newsItem: News = { ...insertNews, id, publishedAt: new Date() };
+    const newsItem: News = { ...insertNews, id, publishedAt: new Date(), imageUrl: insertNews.imageUrl || null, excerpt: insertNews.excerpt || null };
     this.news.set(id, newsItem);
     return newsItem;
   }
@@ -235,7 +259,7 @@ export class MemStorage implements IStorage {
 
   async createArticle(insertArticle: InsertArticle): Promise<Article> {
     const id = this.currentArticleId++;
-    const article: Article = { ...insertArticle, id, publishedAt: new Date() };
+    const article: Article = { ...insertArticle, id, publishedAt: new Date(), imageUrl: insertArticle.imageUrl || null, excerpt: insertArticle.excerpt || null };
     this.articles.set(id, article);
     return article;
   }
@@ -247,7 +271,7 @@ export class MemStorage implements IStorage {
 
   async createInquiry(insertInquiry: InsertInquiry): Promise<Inquiry> {
     const id = this.currentInquiryId++;
-    const inquiry: Inquiry = { ...insertInquiry, id, createdAt: new Date() };
+    const inquiry: Inquiry = { ...insertInquiry, id, createdAt: new Date(), phone: insertInquiry.phone || null, company: insertInquiry.company || null };
     this.inquiries.set(id, inquiry);
     return inquiry;
   }
