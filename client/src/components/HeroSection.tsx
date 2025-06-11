@@ -1,6 +1,19 @@
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { type Category, type HomepageContent } from "@shared/schema";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Zap, Settings, Battery } from "lucide-react";
+import { ChevronLeft, ChevronRight, Zap, Settings, Battery, Car, Wrench, Cpu, Gauge, Power } from "lucide-react";
+
+const iconMap = {
+  "Zap": Zap,
+  "Battery": Battery,
+  "Settings": Settings,
+  "Car": Car,
+  "Wrench": Wrench,
+  "Cpu": Cpu,
+  "Gauge": Gauge,
+  "Power": Power,
+};
 
 const slides = [
   {
@@ -23,8 +36,53 @@ const slides = [
   }
 ];
 
+function CategoriesSidebar() {
+  const { data: categories, isLoading } = useQuery<Category[]>({
+    queryKey: ["/api/categories"],
+  });
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="bg-gray-200 animate-pulse p-6 rounded-xl h-20"></div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {categories?.slice(0, 3).map((category) => {
+        const IconComponent = iconMap[category.icon as keyof typeof iconMap] || Zap;
+        
+        return (
+          <div
+            key={category.id}
+            className="bg-etk-red text-white p-6 rounded-xl hover:bg-red-700 transition-colors cursor-pointer"
+          >
+            <div className="flex items-center space-x-3 mb-3">
+              <IconComponent className="h-8 w-8" />
+              <div>
+                <h3 className="font-bold text-sm uppercase">{category.name}</h3>
+                {category.description && (
+                  <p className="text-xs opacity-90">{category.description}</p>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function HeroSection() {
   const [currentSlide, setCurrentSlide] = useState(0);
+  
+  const { data: categories } = useQuery<Category[]>({
+    queryKey: ["/api/categories"],
+  });
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -89,39 +147,28 @@ export default function HeroSection() {
             </div>
           </div>
 
-          {/* Sidebar */}
+          {/* Categories Sidebar */}
           <div className="space-y-4">
-            <div className="bg-etk-red text-white p-6 rounded-xl hover:bg-red-700 transition-colors cursor-pointer">
-              <div className="flex items-center space-x-3 mb-3">
-                <Zap className="h-8 w-8" />
-                <div>
-                  <h3 className="font-bold">ЭЛЕКТРОТЕХНИЧЕСКОЕ</h3>
-                  <p className="text-sm">ОБОРУДОВАНИЕ</p>
+            {categories?.slice(0, 3).map((category) => {
+              const IconComponent = iconMap[category.icon as keyof typeof iconMap] || Zap;
+              
+              return (
+                <div
+                  key={category.id}
+                  className="bg-etk-red text-white p-6 rounded-xl hover:bg-red-700 transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center space-x-3 mb-3">
+                    <IconComponent className="h-8 w-8" />
+                    <div>
+                      <h3 className="font-bold text-sm uppercase">{category.name}</h3>
+                      {category.description && (
+                        <p className="text-xs opacity-90">{category.description}</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-            
-            <div className="bg-etk-red text-white p-6 rounded-xl hover:bg-red-700 transition-colors cursor-pointer">
-              <div className="flex items-center space-x-3 mb-3">
-                <Settings className="h-8 w-8" />
-                <div>
-                  <h3 className="font-bold">ПЕСКОСТРУЙНОЕ И</h3>
-                  <p className="text-sm">КОМПРЕССОРНОЕ</p>
-                  <p className="text-sm">ОБОРУДОВАНИЕ</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-etk-red text-white p-6 rounded-xl hover:bg-red-700 transition-colors cursor-pointer">
-              <div className="flex items-center space-x-3 mb-3">
-                <Battery className="h-8 w-8" />
-                <div>
-                  <h3 className="font-bold">АККУМУЛЯТОРНЫЕ</h3>
-                  <p className="text-sm">БАТАРЕИ И ЗАРЯДНЫЕ</p>
-                  <p className="text-sm">УСТРОЙСТВА</p>
-                </div>
-              </div>
-            </div>
+              );
+            })}
           </div>
         </div>
       </div>
