@@ -1,165 +1,289 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { Link } from "wouter";
-import { type Product, type Category } from "@shared/schema";
-import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
+import { useQuery } from "@tanstack/react-query";
+import { Search, Filter, Grid, List, Star, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowRight, Grid } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import SEOHead from "@/components/SEOHead";
+import type { Product, Category } from "@shared/schema";
 
 export default function Catalog() {
-  const { data: products, isLoading: productsLoading } = useQuery<Product[]>({
-    queryKey: ["/api/products"],
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+
+  const { data: products = [], isLoading: isLoadingProducts } = useQuery<Product[]>({
+    queryKey: ['/api/products'],
   });
 
-  const { data: categories, isLoading: categoriesLoading } = useQuery<Category[]>({
-    queryKey: ["/api/categories"],
+  const { data: categories = [] } = useQuery<Category[]>({
+    queryKey: ['/api/categories'],
   });
 
-  const ProductCard = ({ product }: { product: Product }) => (
-    <Link href={`/product/${product.id}`}>
-      <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-        <CardContent className="p-6">
-          <img
-            src={product.imageUrl || "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=300"}
-            alt={product.name}
-            className="w-full h-48 object-cover rounded-lg mb-4"
-          />
-          <h3 className="font-bold text-lg mb-2">{product.name}</h3>
-          <p className="text-etk-gray text-sm mb-3">{product.description}</p>
-          <div className="flex justify-between items-center">
-            <Badge variant="outline" className="text-etk-red border-etk-red">
-              {product.price}
-            </Badge>
-            {product.featured && (
-              <Badge className="bg-etk-red">Рекомендуем</Badge>
+  const filteredProducts = products.filter(product => {
+    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (product.description && product.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                         (product.brand && product.brand.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    const matchesCategory = selectedCategory === "all" || product.categoryId.toString() === selectedCategory;
+    
+    return matchesSearch && matchesCategory;
+  });
+
+  const ProductCard = ({ product }: { product: Product }) => {
+    const category = categories.find(c => c.id === product.categoryId);
+    const imageUrl = product.images && product.images.length > 0 ? product.images[0] : product.imageUrl;
+
+    if (viewMode === "list") {
+      return (
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardContent className="p-6">
+            <div className="flex space-x-6">
+              <div className="flex-shrink-0">
+                <div className="w-24 h-24 bg-gray-100 rounded-lg overflow-hidden">
+                  {imageUrl ? (
+                    <img
+                      src={imageUrl}
+                      alt={product.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-400">
+                      <Eye className="w-8 h-8" />
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <div className="flex-1 space-y-2">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-gray-900 hover:text-blue-600">
+                    <Link href={`/product/${product.id}`}>
+                      {product.name}
+                    </Link>
+                  </h3>
+                  <div className="flex items-center space-x-2">
+                    {product.featured && (
+                      <Badge className="bg-yellow-100 text-yellow-800">
+                        <Star className="w-3 h-3 mr-1" />
+                        Рекомендуем
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="flex items-center space-x-4 text-sm text-gray-600">
+                  {category && <span>Категория: {category.name}</span>}
+                  {product.brand && <span>Бренд: {product.brand}</span>}
+                  {product.model && <span>Модель: {product.model}</span>}
+                </div>
+                
+                {product.description && (
+                  <p className="text-gray-600 line-clamp-2">{product.description}</p>
+                )}
+                
+                <div className="flex items-center justify-between">
+                  {product.price && (
+                    <div className="text-lg font-bold text-blue-600">{product.price}</div>
+                  )}
+                  <Link href={`/product/${product.id}`}>
+                    <Button variant="outline" size="sm">
+                      <Eye className="w-4 h-4 mr-2" />
+                      Подробнее
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    return (
+      <Card className="group hover:shadow-lg transition-all duration-300">
+        <CardHeader className="p-0">
+          <div className="aspect-square bg-gray-100 rounded-t-lg overflow-hidden">
+            {imageUrl ? (
+              <img
+                src={imageUrl}
+                alt={product.name}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-gray-400">
+                <Eye className="w-12 h-12" />
+              </div>
             )}
+          </div>
+        </CardHeader>
+        
+        <CardContent className="p-4 space-y-3">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-gray-900 group-hover:text-blue-600 line-clamp-2">
+                <Link href={`/product/${product.id}`}>
+                  {product.name}
+                </Link>
+              </h3>
+              {product.featured && (
+                <Badge className="bg-yellow-100 text-yellow-800 flex-shrink-0">
+                  <Star className="w-3 h-3" />
+                </Badge>
+              )}
+            </div>
+            
+            {category && (
+              <p className="text-sm text-gray-600">{category.name}</p>
+            )}
+            
+            <div className="flex items-center space-x-2 text-xs text-gray-500">
+              {product.brand && <span>Бренд: {product.brand}</span>}
+              {product.model && <span>Модель: {product.model}</span>}
+            </div>
+          </div>
+          
+          {product.description && (
+            <p className="text-sm text-gray-600 line-clamp-2">{product.description}</p>
+          )}
+          
+          <div className="flex items-center justify-between">
+            {product.price && (
+              <div className="font-bold text-blue-600">{product.price}</div>
+            )}
+            <Link href={`/product/${product.id}`}>
+              <Button variant="outline" size="sm">
+                <Eye className="w-4 h-4 mr-1" />
+                Подробнее
+              </Button>
+            </Link>
           </div>
         </CardContent>
       </Card>
-    </Link>
-  );
-
-  const ProductSkeleton = () => (
-    <Card>
-      <CardContent className="p-6">
-        <Skeleton className="w-full h-48 rounded-lg mb-4" />
-        <Skeleton className="h-6 w-3/4 mb-2" />
-        <Skeleton className="h-4 w-full mb-3" />
-        <div className="flex justify-between items-center">
-          <Skeleton className="h-6 w-20" />
-          <Skeleton className="h-6 w-16" />
-        </div>
-      </CardContent>
-    </Card>
-  );
-
-  if (categoriesLoading || productsLoading) {
-    return (
-      <div className="container mx-auto px-4 py-12">
-        <div className="text-center mb-12">
-          <Skeleton className="h-10 w-64 mx-auto mb-4" />
-          <Skeleton className="h-6 w-96 mx-auto" />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <ProductSkeleton key={i} />
-          ))}
-        </div>
-      </div>
     );
-  }
+  };
 
   return (
-    <div className="container mx-auto px-4 py-12">
-      <div className="text-center mb-12">
-        <h1 className="text-4xl font-bold mb-4">Каталог продукции</h1>
-        <p className="text-xl text-etk-gray">
-          Промышленное оборудование высокого качества
-        </p>
-      </div>
+    <div className="min-h-screen bg-gray-50">
+      <SEOHead 
+        title="Каталог продукции | ЗАО Курс - Электротехническое оборудование"
+        description="Полный каталог электротехнического оборудования ЗАО Курс. Широкий ассортимент качественной продукции с подробными характеристиками."
+        keywords="каталог, электротехническое оборудование, продукция, ЗАО Курс"
+      />
 
-      {/* Categories Grid */}
-      <div className="mb-12">
-        <h2 className="text-2xl font-bold mb-6">Категории продукции</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {categories?.map((category) => (
-            <Card key={category.id} className="hover:shadow-lg transition-shadow group">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <Grid className="h-8 w-8 text-etk-red" />
-                  <Badge variant="outline">
-                    {products?.filter(p => p.categoryId === category.id).length} товаров
-                  </Badge>
-                </div>
-                <h3 className="font-bold text-lg mb-2">{category.name}</h3>
-                <p className="text-etk-gray text-sm mb-4">{category.description}</p>
-                <Link href={`/catalog/category/${category.id}`}>
-                  <Button className="w-full bg-etk-red hover:bg-etk-red/90 group-hover:bg-etk-red/80 transition-colors">
-                    Просмотреть товары
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-          ))}
+      <div className="container mx-auto px-4 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Каталог продукции</h1>
+          <p className="text-gray-600">Найдите нужное электротехническое оборудование из нашего ассортимента</p>
         </div>
-      </div>
 
-      <Tabs defaultValue="all" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 mb-8">
-          <TabsTrigger value="all">Все товары</TabsTrigger>
-          {categories?.slice(0, 3).map((category) => (
-            <TabsTrigger key={category.id} value={category.id.toString()}>
-              {category.name.split(' ')[0]}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+        {/* Filters */}
+        <div className="bg-white rounded-lg p-6 mb-8 shadow-sm">
+          <div className="flex flex-col lg:flex-row gap-4 items-center">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Input
+                type="text"
+                placeholder="Поиск по названию, описанию или бренду..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            
+            <div className="flex items-center space-x-4">
+              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Все категории" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Все категории</SelectItem>
+                  {categories.map(category => (
+                    <SelectItem key={category.id} value={category.id.toString()}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant={viewMode === "grid" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setViewMode("grid")}
+                >
+                  <Grid className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant={viewMode === "list" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setViewMode("list")}
+                >
+                  <List className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
 
-        <TabsContent value="all">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {products?.map((product) => (
+        {/* Results count */}
+        <div className="mb-6">
+          <p className="text-gray-600">
+            Найдено товаров: <span className="font-semibold">{filteredProducts.length}</span>
+          </p>
+        </div>
+
+        {/* Products */}
+        {isLoadingProducts ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {Array.from({ length: 8 }).map((_, index) => (
+              <Card key={index} className="animate-pulse">
+                <CardHeader className="p-0">
+                  <div className="aspect-square bg-gray-200 rounded-t-lg"></div>
+                </CardHeader>
+                <CardContent className="p-4 space-y-3">
+                  <div className="h-4 bg-gray-200 rounded"></div>
+                  <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+                  <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : filteredProducts.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="text-gray-400 mb-4">
+              <Search className="w-16 h-16 mx-auto" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Товары не найдены</h3>
+            <p className="text-gray-600 mb-4">
+              Попробуйте изменить критерии поиска или выбрать другую категорию
+            </p>
+            <Button 
+              onClick={() => {
+                setSearchTerm("");
+                setSelectedCategory("all");
+              }}
+              variant="outline"
+            >
+              Сбросить фильтры
+            </Button>
+          </div>
+        ) : (
+          <div className={
+            viewMode === "grid" 
+              ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+              : "space-y-4"
+          }>
+            {filteredProducts.map(product => (
               <ProductCard key={product.id} product={product} />
             ))}
           </div>
-        </TabsContent>
-
-        {categories?.slice(0, 3).map((category) => (
-          <TabsContent key={category.id} value={category.id.toString()}>
-            <div className="mb-8 flex justify-between items-start">
-              <div>
-                <h2 className="text-2xl font-bold mb-4">{category.name}</h2>
-                <p className="text-etk-gray">{category.description}</p>
-              </div>
-              <Link href={`/catalog/category/${category.id}`}>
-                <Button variant="outline">
-                  Все товары категории
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </Button>
-              </Link>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {products
-                ?.filter((product) => product.categoryId === category.id)
-                .slice(0, 6)
-                .map((product) => (
-                  <ProductCard key={product.id} product={product} />
-                ))}
-            </div>
-            {products?.filter((product) => product.categoryId === category.id).length > 6 && (
-              <div className="text-center mt-8">
-                <Link href={`/catalog/category/${category.id}`}>
-                  <Button variant="outline" size="lg">
-                    Показать все товары ({products?.filter((product) => product.categoryId === category.id).length})
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                  </Button>
-                </Link>
-              </div>
-            )}
-          </TabsContent>
-        ))}
-      </Tabs>
+        )}
+      </div>
     </div>
   );
 }
