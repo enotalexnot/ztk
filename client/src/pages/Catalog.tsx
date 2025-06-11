@@ -18,25 +18,27 @@ export default function Catalog() {
   });
 
   const ProductCard = ({ product }: { product: Product }) => (
-    <Card className="hover:shadow-lg transition-shadow">
-      <CardContent className="p-6">
-        <img
-          src={product.imageUrl || "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=300"}
-          alt={product.name}
-          className="w-full h-48 object-cover rounded-lg mb-4"
-        />
-        <h3 className="font-bold text-lg mb-2">{product.name}</h3>
-        <p className="text-etk-gray text-sm mb-3">{product.description}</p>
-        <div className="flex justify-between items-center">
-          <Badge variant="outline" className="text-etk-red border-etk-red">
-            {product.price}
-          </Badge>
-          {product.featured && (
-            <Badge className="bg-etk-red">Рекомендуем</Badge>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+    <Link href={`/product/${product.id}`}>
+      <Card className="hover:shadow-lg transition-shadow cursor-pointer">
+        <CardContent className="p-6">
+          <img
+            src={product.imageUrl || "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=300"}
+            alt={product.name}
+            className="w-full h-48 object-cover rounded-lg mb-4"
+          />
+          <h3 className="font-bold text-lg mb-2">{product.name}</h3>
+          <p className="text-etk-gray text-sm mb-3">{product.description}</p>
+          <div className="flex justify-between items-center">
+            <Badge variant="outline" className="text-etk-red border-etk-red">
+              {product.price}
+            </Badge>
+            {product.featured && (
+              <Badge className="bg-etk-red">Рекомендуем</Badge>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </Link>
   );
 
   const ProductSkeleton = () => (

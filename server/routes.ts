@@ -162,7 +162,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin routes - Products
-  app.post("/api/admin/products", async (req, res) => {
+  app.post("/api/admin/products", requireAdmin, async (req, res) => {
     try {
       const validatedData = insertProductSchema.parse(req.body);
       const product = await storage.createProduct(validatedData);
@@ -172,6 +172,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid product data", details: error.errors });
       }
       res.status(500).json({ error: "Failed to create product" });
+    }
+  });
+
+  app.put("/api/admin/products/:id", requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid product ID" });
+      }
+      const validatedData = insertProductSchema.parse(req.body);
+      const product = await storage.updateProduct(id, validatedData);
+      res.json(product);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid product data", details: error.errors });
+      }
+      res.status(500).json({ error: "Failed to update product" });
+    }
+  });
+
+  app.delete("/api/admin/products/:id", requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid product ID" });
+      }
+      await storage.deleteProduct(id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete product" });
     }
   });
 

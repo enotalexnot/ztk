@@ -282,16 +282,16 @@ export default function ProductDetailPage() {
       <Card className="mt-12">
         <CardContent className="pt-6">
           <div className="text-center">
-            <h3 className="text-xl font-semibold mb-4">{t.needHelp}</h3>
+            <h3 className="text-xl font-semibold mb-4">Не нашли что искали?</h3>
             <p className="text-gray-600 dark:text-gray-400 mb-6">
-              {t.contactForDetails}
+              Наши сотрудники всегда Вам помогут!
             </p>
             <div className="flex flex-wrap justify-center gap-4">
               <Button>
-                {t.requestQuote}
+                Запросить коммерческое предложение
               </Button>
               <Button variant="outline">
-                {t.contactUs}
+                Связаться с нами
               </Button>
             </div>
           </div>
