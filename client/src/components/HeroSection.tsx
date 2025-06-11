@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { type Category, type HomepageContent } from "@shared/schema";
+import { type Category, type SliderItem } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Zap, Settings, Battery, Car, Wrench, Cpu, Gauge, Power } from "lucide-react";
 
@@ -15,7 +15,8 @@ const iconMap = {
   "Power": Power,
 };
 
-const slides = [
+// Fallback slides for when no slider items are available
+const fallbackSlides = [
   {
     title: "ЗАРЯДНЫЕ УСТРОЙСТВА",
     subtitle: "для кислотных, щелочных и литиевых АКБ",
@@ -84,13 +85,23 @@ export default function HeroSection() {
     queryKey: ["/api/categories"],
   });
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % slides.length);
-    }, 5000);
+  const { data: sliderItems } = useQuery<SliderItem[]>({
+    queryKey: ["/api/slider-items"],
+  });
 
-    return () => clearInterval(interval);
-  }, []);
+  // Use slider items from admin panel or fallback slides
+  const activeSlides = sliderItems?.filter(item => item.isActive).sort((a, b) => a.order - b.order) || [];
+  const slides = activeSlides.length > 0 ? activeSlides : fallbackSlides;
+
+  useEffect(() => {
+    if (slides.length > 0) {
+      const interval = setInterval(() => {
+        setCurrentSlide((prev) => (prev + 1) % slides.length);
+      }, 5000);
+
+      return () => clearInterval(interval);
+    }
+  }, [slides.length]);
 
   const nextSlide = () => {
     setCurrentSlide((prev) => (prev + 1) % slides.length);
@@ -100,7 +111,23 @@ export default function HeroSection() {
     setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
   };
 
-  const currentSlideData = slides[currentSlide];
+  const currentSlideData = slides[currentSlide] || fallbackSlides[0];
+
+  if (!currentSlideData) {
+    return <div>Загрузка...</div>;
+  }
+
+  const getImageUrl = (slide: any) => {
+    if ('imageUrl' in slide && slide.imageUrl) return slide.imageUrl;
+    if ('image' in slide && slide.image) return slide.image;
+    return "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&h=600";
+  };
+
+  const getSubtitle = (slide: any) => {
+    if ('subtitle' in slide && slide.subtitle) return slide.subtitle;
+    if ('description' in slide && slide.description) return slide.description;
+    return "";
+  };
 
   return (
     <section className="relative">
@@ -110,21 +137,32 @@ export default function HeroSection() {
           <div className="lg:col-span-2 relative">
             <div className="bg-gradient-to-r from-black/70 to-transparent absolute inset-0 z-10 rounded-xl"></div>
             <img
-              src={currentSlideData.image}
+              src={getImageUrl(currentSlideData)}
               alt={currentSlideData.title}
               className="w-full h-96 object-cover rounded-xl transition-all duration-500"
             />
             <div className="absolute inset-0 z-20 flex items-center px-8">
               <div className="text-white">
                 <h1 className="text-4xl font-bold mb-4">{currentSlideData.title}</h1>
-                <p className="text-xl mb-6">{currentSlideData.subtitle}</p>
+                <p className="text-xl mb-6">{getSubtitle(currentSlideData)}</p>
                 <div className="flex items-center space-x-4">
-                  <span className="text-6xl font-light">{currentSlideData.slideNumber}</span>
+                  <span className="text-6xl font-light">{(currentSlide + 1).toString().padStart(2, '0')}</span>
                   <div className="w-12 h-px bg-white"></div>
                   <span className="text-6xl font-light">
                     {slides.length.toString().padStart(2, '0')}
                   </span>
                 </div>
+                {('buttonText' in currentSlideData && currentSlideData.buttonText && currentSlideData.buttonUrl) && (
+                  <div className="mt-6">
+                    <Button 
+                      variant="secondary" 
+                      className="bg-etk-red hover:bg-red-700 text-white"
+                      onClick={() => window.location.href = currentSlideData.buttonUrl!}
+                    >
+                      {currentSlideData.buttonText}
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
             <div className="absolute bottom-4 right-4 z-20 flex space-x-2">
