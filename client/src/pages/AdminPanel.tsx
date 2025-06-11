@@ -1,37 +1,53 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
-import { useAdmin } from "@/hooks/useAdmin";
-import { useLanguage } from "@/hooks/useLanguage";
-import { Pencil, Trash2, Plus, LogOut, Package, FileText, MessageSquare, Settings } from "lucide-react";
-import type { InsertProduct, InsertCategory, InsertNews, InsertStaticPage, Product, Category, News, StaticPage } from "@shared/schema";
+import { LogOut, Plus, Pencil, Trash2, Package, FileText, MessageSquare, Settings, FolderOpen, Newspaper } from "lucide-react";
+import type { InsertProduct, InsertCategory, InsertNews, InsertArticle, InsertStaticPage, Product, Category, News, Article, StaticPage, Inquiry } from "@shared/schema";
 
-function LoginForm() {
+function LoginForm({ onLogin }: { onLogin: (admin: any) => void }) {
   const [credentials, setCredentials] = useState({ username: "", password: "" });
-  const { login, isLoggingIn } = useAdmin();
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
+    
     try {
-      await login(credentials);
-      toast({ title: "Успешный вход", description: "Добро пожаловать в админ-панель" });
+      const response = await fetch("/api/admin/login", {
+        method: "POST",
+        body: JSON.stringify(credentials),
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        onLogin(data.admin);
+        toast({ title: "Успешный вход", description: "Добро пожаловать в админ-панель" });
+      } else {
+        toast({ 
+          title: "Ошибка входа", 
+          description: "Неверные учетные данные",
+          variant: "destructive" 
+        });
+      }
     } catch (error) {
       toast({ 
-        title: "Ошибка входа", 
-        description: "Неверные учетные данные",
+        title: "Ошибка", 
+        description: "Не удалось войти в систему",
         variant: "destructive" 
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -63,8 +79,8 @@ function LoginForm() {
                 required
               />
             </div>
-            <Button type="submit" className="w-full" disabled={isLoggingIn}>
-              {isLoggingIn ? "Вход..." : "Войти"}
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? "Вход..." : "Войти"}
             </Button>
           </form>
         </CardContent>
@@ -73,178 +89,165 @@ function LoginForm() {
   );
 }
 
+// Management components
 function ProductsManagement() {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-
-  const { data: products = [], isLoading: productsLoading } = useQuery({
-    queryKey: ["/api/products"],
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [formData, setFormData] = useState<Partial<InsertProduct>>({
+    name: "",
+    description: "",
+    categoryId: 0,
+    price: "",
+    imageUrl: "",
+    brand: "",
+    model: "",
+    specifications: ""
   });
+  const { toast } = useToast();
 
-  const { data: categories = [] } = useQuery({
-    queryKey: ["/api/categories"],
-  });
+  useEffect(() => {
+    loadData();
+  }, []);
 
-  const createProductMutation = useMutation({
-    mutationFn: async (data: InsertProduct) => {
-      return await apiRequest("/api/admin/products", {
-        method: "POST",
-        body: JSON.stringify(data),
-        headers: { "Content-Type": "application/json" },
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
-      toast({ title: "Успех", description: "Товар создан" });
-      setIsDialogOpen(false);
-    },
-  });
-
-  const updateProductMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: Partial<InsertProduct> }) => {
-      return await apiRequest(`/api/admin/products/${id}`, {
-        method: "PUT",
-        body: JSON.stringify(data),
-        headers: { "Content-Type": "application/json" },
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
-      toast({ title: "Успех", description: "Товар обновлен" });
-      setEditingProduct(null);
-      setIsDialogOpen(false);
-    },
-  });
-
-  const deleteProductMutation = useMutation({
-    mutationFn: async (id: number) => {
-      return await apiRequest(`/api/admin/products/${id}`, {
-        method: "DELETE",
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
-      toast({ title: "Успех", description: "Товар удален" });
-    },
-  });
-
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const data = {
-      name: formData.get("name") as string,
-      description: formData.get("description") as string,
-      categoryId: parseInt(formData.get("categoryId") as string),
-      price: formData.get("price") as string,
-      imageUrl: formData.get("imageUrl") as string,
-      brand: formData.get("brand") as string,
-      model: formData.get("model") as string,
-      specifications: formData.get("specifications") as string,
-    };
-
-    if (editingProduct) {
-      updateProductMutation.mutate({ id: editingProduct.id, data });
-    } else {
-      createProductMutation.mutate(data);
+  const loadData = async () => {
+    try {
+      const [productsRes, categoriesRes] = await Promise.all([
+        fetch("/api/products", { credentials: "include" }),
+        fetch("/api/categories", { credentials: "include" })
+      ]);
+      
+      if (productsRes.ok && categoriesRes.ok) {
+        setProducts(await productsRes.json());
+        setCategories(await categoriesRes.json());
+      }
+    } catch (error) {
+      toast({ title: "Ошибка", description: "Не удалось загрузить данные", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const url = editingProduct ? `/api/admin/products/${editingProduct.id}` : "/api/admin/products";
+      const method = editingProduct ? "PUT" : "POST";
+      
+      const response = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(formData)
+      });
+
+      if (response.ok) {
+        toast({ title: "Успех", description: editingProduct ? "Товар обновлен" : "Товар создан" });
+        setIsDialogOpen(false);
+        setEditingProduct(null);
+        setFormData({ name: "", description: "", categoryId: 0, price: "", imageUrl: "", brand: "", model: "", specifications: "" });
+        loadData();
+      } else {
+        throw new Error("Save failed");
+      }
+    } catch (error) {
+      toast({ title: "Ошибка", description: "Не удалось сохранить товар", variant: "destructive" });
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    try {
+      const response = await fetch(`/api/admin/products/${id}`, {
+        method: "DELETE",
+        credentials: "include"
+      });
+
+      if (response.ok) {
+        toast({ title: "Успех", description: "Товар удален" });
+        loadData();
+      } else {
+        throw new Error("Delete failed");
+      }
+    } catch (error) {
+      toast({ title: "Ошибка", description: "Не удалось удалить товар", variant: "destructive" });
+    }
+  };
+
+  if (isLoading) return <div>Загрузка...</div>;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Управление товарами</h2>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={() => setEditingProduct(null)}>
+            <Button onClick={() => {
+              setEditingProduct(null);
+              setFormData({ name: "", description: "", categoryId: 0, price: "", imageUrl: "", brand: "", model: "", specifications: "" });
+            }}>
               <Plus className="mr-2 h-4 w-4" />
               Добавить товар
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
+          <DialogContent>
             <DialogHeader>
-              <DialogTitle>
-                {editingProduct ? "Редактировать товар" : "Добавить товар"}
-              </DialogTitle>
+              <DialogTitle>{editingProduct ? "Редактировать товар" : "Добавить товар"}</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="name">Название</Label>
-                  <Input
-                    id="name"
-                    name="name"
-                    defaultValue={editingProduct?.name || ""}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="categoryId">Категория</Label>
-                  <Select name="categoryId" defaultValue={editingProduct?.categoryId?.toString()}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Выберите категорию" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.map((category: Category) => (
-                        <SelectItem key={category.id} value={category.id.toString()}>
-                          {category.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+            <form onSubmit={handleSave} className="space-y-4">
+              <div>
+                <Label htmlFor="name">Название</Label>
+                <Input
+                  id="name"
+                  value={formData.name || ""}
+                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="category">Категория</Label>
+                <Select value={String(formData.categoryId || "")} onValueChange={(value) => setFormData(prev => ({ ...prev, categoryId: Number(value) }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Выберите категорию" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat.id} value={String(cat.id)}>{cat.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label htmlFor="description">Описание</Label>
                 <Textarea
                   id="description"
-                  name="description"
-                  defaultValue={editingProduct?.description || ""}
+                  value={formData.description || ""}
+                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="price">Цена</Label>
-                  <Input
-                    id="price"
-                    name="price"
-                    defaultValue={editingProduct?.price || ""}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="brand">Бренд</Label>
-                  <Input
-                    id="brand"
-                    name="brand"
-                    defaultValue={editingProduct?.brand || ""}
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="model">Модель</Label>
-                  <Input
-                    id="model"
-                    name="model"
-                    defaultValue={editingProduct?.model || ""}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="imageUrl">URL изображения</Label>
-                  <Input
-                    id="imageUrl"
-                    name="imageUrl"
-                    defaultValue={editingProduct?.imageUrl || ""}
-                  />
-                </div>
+              <div>
+                <Label htmlFor="price">Цена</Label>
+                <Input
+                  id="price"
+                  value={formData.price || ""}
+                  onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
+                />
               </div>
               <div>
-                <Label htmlFor="specifications">Характеристики</Label>
-                <Textarea
-                  id="specifications"
-                  name="specifications"
-                  defaultValue={editingProduct?.specifications || ""}
+                <Label htmlFor="brand">Бренд</Label>
+                <Input
+                  id="brand"
+                  value={formData.brand || ""}
+                  onChange={(e) => setFormData(prev => ({ ...prev, brand: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label htmlFor="model">Модель</Label>
+                <Input
+                  id="model"
+                  value={formData.model || ""}
+                  onChange={(e) => setFormData(prev => ({ ...prev, model: e.target.value }))}
                 />
               </div>
               <div className="flex justify-end space-x-2">
@@ -273,14 +276,12 @@ function ProductsManagement() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {products.map((product: Product) => (
+              {products.map((product) => (
                 <TableRow key={product.id}>
                   <TableCell>{product.name}</TableCell>
-                  <TableCell>
-                    {categories.find((c: Category) => c.id === product.categoryId)?.name}
-                  </TableCell>
-                  <TableCell>{product.price}</TableCell>
-                  <TableCell>{product.brand}</TableCell>
+                  <TableCell>{categories.find(c => c.id === product.categoryId)?.name}</TableCell>
+                  <TableCell>{product.price || "—"}</TableCell>
+                  <TableCell>{product.brand || "—"}</TableCell>
                   <TableCell>
                     <div className="flex space-x-2">
                       <Button
@@ -288,6 +289,7 @@ function ProductsManagement() {
                         variant="outline"
                         onClick={() => {
                           setEditingProduct(product);
+                          setFormData(product);
                           setIsDialogOpen(true);
                         }}
                       >
@@ -296,7 +298,7 @@ function ProductsManagement() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => deleteProductMutation.mutate(product.id)}
+                        onClick={() => handleDelete(product.id)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -313,98 +315,106 @@ function ProductsManagement() {
 }
 
 function CategoriesManagement() {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-
-  const { data: categories = [] } = useQuery({
-    queryKey: ["/api/categories"],
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [formData, setFormData] = useState<Partial<InsertCategory>>({
+    name: "",
+    description: "",
+    icon: ""
   });
+  const { toast } = useToast();
 
-  const createCategoryMutation = useMutation({
-    mutationFn: async (data: InsertCategory) => {
-      return await apiRequest("/api/admin/categories", {
-        method: "POST",
-        body: JSON.stringify(data),
-        headers: { "Content-Type": "application/json" },
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
-      toast({ title: "Успех", description: "Категория создана" });
-      setIsDialogOpen(false);
-    },
-  });
+  useEffect(() => {
+    loadCategories();
+  }, []);
 
-  const updateCategoryMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: Partial<InsertCategory> }) => {
-      return await apiRequest(`/api/admin/categories/${id}`, {
-        method: "PUT",
-        body: JSON.stringify(data),
-        headers: { "Content-Type": "application/json" },
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
-      toast({ title: "Успех", description: "Категория обновлена" });
-      setEditingCategory(null);
-      setIsDialogOpen(false);
-    },
-  });
-
-  const deleteCategoryMutation = useMutation({
-    mutationFn: async (id: number) => {
-      return await apiRequest(`/api/admin/categories/${id}`, {
-        method: "DELETE",
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
-      toast({ title: "Успех", description: "Категория удалена" });
-    },
-  });
-
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const data = {
-      name: formData.get("name") as string,
-      description: formData.get("description") as string,
-      icon: formData.get("icon") as string,
-    };
-
-    if (editingCategory) {
-      updateCategoryMutation.mutate({ id: editingCategory.id, data });
-    } else {
-      createCategoryMutation.mutate(data);
+  const loadCategories = async () => {
+    try {
+      const response = await fetch("/api/categories", { credentials: "include" });
+      if (response.ok) {
+        setCategories(await response.json());
+      }
+    } catch (error) {
+      toast({ title: "Ошибка", description: "Не удалось загрузить категории", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const url = editingCategory ? `/api/admin/categories/${editingCategory.id}` : "/api/admin/categories";
+      const method = editingCategory ? "PUT" : "POST";
+      
+      const response = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(formData)
+      });
+
+      if (response.ok) {
+        toast({ title: "Успех", description: editingCategory ? "Категория обновлена" : "Категория создана" });
+        setIsDialogOpen(false);
+        setEditingCategory(null);
+        setFormData({ name: "", description: "", icon: "" });
+        loadCategories();
+      } else {
+        throw new Error("Save failed");
+      }
+    } catch (error) {
+      toast({ title: "Ошибка", description: "Не удалось сохранить категорию", variant: "destructive" });
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    try {
+      const response = await fetch(`/api/admin/categories/${id}`, {
+        method: "DELETE",
+        credentials: "include"
+      });
+
+      if (response.ok) {
+        toast({ title: "Успех", description: "Категория удалена" });
+        loadCategories();
+      } else {
+        throw new Error("Delete failed");
+      }
+    } catch (error) {
+      toast({ title: "Ошибка", description: "Не удалось удалить категорию", variant: "destructive" });
+    }
+  };
+
+  if (isLoading) return <div>Загрузка...</div>;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Управление категориями</h2>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={() => setEditingCategory(null)}>
+            <Button onClick={() => {
+              setEditingCategory(null);
+              setFormData({ name: "", description: "", icon: "" });
+            }}>
               <Plus className="mr-2 h-4 w-4" />
               Добавить категорию
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>
-                {editingCategory ? "Редактировать категорию" : "Добавить категорию"}
-              </DialogTitle>
+              <DialogTitle>{editingCategory ? "Редактировать категорию" : "Добавить категорию"}</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSave} className="space-y-4">
               <div>
                 <Label htmlFor="name">Название</Label>
                 <Input
                   id="name"
-                  name="name"
-                  defaultValue={editingCategory?.name || ""}
+                  value={formData.name || ""}
+                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                   required
                 />
               </div>
@@ -412,17 +422,17 @@ function CategoriesManagement() {
                 <Label htmlFor="description">Описание</Label>
                 <Textarea
                   id="description"
-                  name="description"
-                  defaultValue={editingCategory?.description || ""}
+                  value={formData.description || ""}
+                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                 />
               </div>
               <div>
                 <Label htmlFor="icon">Иконка</Label>
                 <Input
                   id="icon"
-                  name="icon"
-                  defaultValue={editingCategory?.icon || ""}
-                  placeholder="Название иконки Lucide"
+                  value={formData.icon || ""}
+                  onChange={(e) => setFormData(prev => ({ ...prev, icon: e.target.value }))}
+                  placeholder="Название иконки (например: Zap)"
                 />
               </div>
               <div className="flex justify-end space-x-2">
@@ -450,11 +460,11 @@ function CategoriesManagement() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {categories.map((category: Category) => (
+              {categories.map((category) => (
                 <TableRow key={category.id}>
                   <TableCell>{category.name}</TableCell>
-                  <TableCell>{category.description}</TableCell>
-                  <TableCell>{category.icon}</TableCell>
+                  <TableCell>{category.description || "—"}</TableCell>
+                  <TableCell>{category.icon || "—"}</TableCell>
                   <TableCell>
                     <div className="flex space-x-2">
                       <Button
@@ -462,6 +472,7 @@ function CategoriesManagement() {
                         variant="outline"
                         onClick={() => {
                           setEditingCategory(category);
+                          setFormData(category);
                           setIsDialogOpen(true);
                         }}
                       >
@@ -470,7 +481,7 @@ function CategoriesManagement() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => deleteCategoryMutation.mutate(category.id)}
+                        onClick={() => handleDelete(category.id)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -487,99 +498,107 @@ function CategoriesManagement() {
 }
 
 function NewsManagement() {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [editingNews, setEditingNews] = useState<News | null>(null);
+  const [news, setNews] = useState<News[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-
-  const { data: news = [] } = useQuery({
-    queryKey: ["/api/news"],
+  const [editingNews, setEditingNews] = useState<News | null>(null);
+  const [formData, setFormData] = useState<Partial<InsertNews>>({
+    title: "",
+    content: "",
+    excerpt: "",
+    imageUrl: ""
   });
+  const { toast } = useToast();
 
-  const createNewsMutation = useMutation({
-    mutationFn: async (data: InsertNews) => {
-      return await apiRequest("/api/admin/news", {
-        method: "POST",
-        body: JSON.stringify(data),
-        headers: { "Content-Type": "application/json" },
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/news"] });
-      toast({ title: "Успех", description: "Новость создана" });
-      setIsDialogOpen(false);
-    },
-  });
+  useEffect(() => {
+    loadNews();
+  }, []);
 
-  const updateNewsMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: Partial<InsertNews> }) => {
-      return await apiRequest(`/api/admin/news/${id}`, {
-        method: "PUT",
-        body: JSON.stringify(data),
-        headers: { "Content-Type": "application/json" },
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/news"] });
-      toast({ title: "Успех", description: "Новость обновлена" });
-      setEditingNews(null);
-      setIsDialogOpen(false);
-    },
-  });
-
-  const deleteNewsMutation = useMutation({
-    mutationFn: async (id: number) => {
-      return await apiRequest(`/api/admin/news/${id}`, {
-        method: "DELETE",
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/news"] });
-      toast({ title: "Успех", description: "Новость удалена" });
-    },
-  });
-
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const data = {
-      title: formData.get("title") as string,
-      content: formData.get("content") as string,
-      excerpt: formData.get("excerpt") as string,
-      imageUrl: formData.get("imageUrl") as string,
-    };
-
-    if (editingNews) {
-      updateNewsMutation.mutate({ id: editingNews.id, data });
-    } else {
-      createNewsMutation.mutate(data);
+  const loadNews = async () => {
+    try {
+      const response = await fetch("/api/news", { credentials: "include" });
+      if (response.ok) {
+        setNews(await response.json());
+      }
+    } catch (error) {
+      toast({ title: "Ошибка", description: "Не удалось загрузить новости", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const url = editingNews ? `/api/admin/news/${editingNews.id}` : "/api/admin/news";
+      const method = editingNews ? "PUT" : "POST";
+      
+      const response = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(formData)
+      });
+
+      if (response.ok) {
+        toast({ title: "Успех", description: editingNews ? "Новость обновлена" : "Новость создана" });
+        setIsDialogOpen(false);
+        setEditingNews(null);
+        setFormData({ title: "", content: "", excerpt: "", imageUrl: "" });
+        loadNews();
+      } else {
+        throw new Error("Save failed");
+      }
+    } catch (error) {
+      toast({ title: "Ошибка", description: "Не удалось сохранить новость", variant: "destructive" });
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    try {
+      const response = await fetch(`/api/admin/news/${id}`, {
+        method: "DELETE",
+        credentials: "include"
+      });
+
+      if (response.ok) {
+        toast({ title: "Успех", description: "Новость удалена" });
+        loadNews();
+      } else {
+        throw new Error("Delete failed");
+      }
+    } catch (error) {
+      toast({ title: "Ошибка", description: "Не удалось удалить новость", variant: "destructive" });
+    }
+  };
+
+  if (isLoading) return <div>Загрузка...</div>;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Управление новостями</h2>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={() => setEditingNews(null)}>
+            <Button onClick={() => {
+              setEditingNews(null);
+              setFormData({ title: "", content: "", excerpt: "", imageUrl: "" });
+            }}>
               <Plus className="mr-2 h-4 w-4" />
               Добавить новость
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>
-                {editingNews ? "Редактировать новость" : "Добавить новость"}
-              </DialogTitle>
+              <DialogTitle>{editingNews ? "Редактировать новость" : "Добавить новость"}</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSave} className="space-y-4">
               <div>
                 <Label htmlFor="title">Заголовок</Label>
                 <Input
                   id="title"
-                  name="title"
-                  defaultValue={editingNews?.title || ""}
+                  value={formData.title || ""}
+                  onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
                   required
                 />
               </div>
@@ -587,16 +606,16 @@ function NewsManagement() {
                 <Label htmlFor="excerpt">Краткое описание</Label>
                 <Textarea
                   id="excerpt"
-                  name="excerpt"
-                  defaultValue={editingNews?.excerpt || ""}
+                  value={formData.excerpt || ""}
+                  onChange={(e) => setFormData(prev => ({ ...prev, excerpt: e.target.value }))}
                 />
               </div>
               <div>
                 <Label htmlFor="content">Содержание</Label>
                 <Textarea
                   id="content"
-                  name="content"
-                  defaultValue={editingNews?.content || ""}
+                  value={formData.content || ""}
+                  onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
                   rows={6}
                   required
                 />
@@ -605,8 +624,8 @@ function NewsManagement() {
                 <Label htmlFor="imageUrl">URL изображения</Label>
                 <Input
                   id="imageUrl"
-                  name="imageUrl"
-                  defaultValue={editingNews?.imageUrl || ""}
+                  value={formData.imageUrl || ""}
+                  onChange={(e) => setFormData(prev => ({ ...prev, imageUrl: e.target.value }))}
                 />
               </div>
               <div className="flex justify-end space-x-2">
@@ -633,11 +652,11 @@ function NewsManagement() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {news.map((item: News) => (
+              {news.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell>{item.title}</TableCell>
                   <TableCell>
-                    {new Date(item.publishedAt).toLocaleDateString('ru-RU')}
+                    {item.publishedAt && typeof item.publishedAt === 'string' ? new Date(item.publishedAt).toLocaleDateString('ru-RU') : '—'}
                   </TableCell>
                   <TableCell>
                     <div className="flex space-x-2">
@@ -646,6 +665,7 @@ function NewsManagement() {
                         variant="outline"
                         onClick={() => {
                           setEditingNews(item);
+                          setFormData(item);
                           setIsDialogOpen(true);
                         }}
                       >
@@ -654,7 +674,7 @@ function NewsManagement() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => deleteNewsMutation.mutate(item.id)}
+                        onClick={() => handleDelete(item.id)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -670,131 +690,387 @@ function NewsManagement() {
   );
 }
 
-function StaticPagesManagement() {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [editingPage, setEditingPage] = useState<StaticPage | null>(null);
+function ArticlesManagement() {
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-
-  const { data: pages = [] } = useQuery({
-    queryKey: ["/api/static-pages"],
+  const [editingArticle, setEditingArticle] = useState<Article | null>(null);
+  const [formData, setFormData] = useState<Partial<InsertArticle>>({
+    title: "",
+    content: "",
+    excerpt: "",
+    imageUrl: ""
   });
+  const { toast } = useToast();
 
-  const createPageMutation = useMutation({
-    mutationFn: async (data: InsertStaticPage) => {
-      return await apiRequest("/api/admin/static-pages", {
-        method: "POST",
-        body: JSON.stringify(data),
-        headers: { "Content-Type": "application/json" },
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/static-pages"] });
-      toast({ title: "Успех", description: "Страница создана" });
-      setIsDialogOpen(false);
-    },
-  });
+  useEffect(() => {
+    loadArticles();
+  }, []);
 
-  const updatePageMutation = useMutation({
-    mutationFn: async ({ slug, data }: { slug: string; data: Partial<InsertStaticPage> }) => {
-      return await apiRequest(`/api/admin/static-pages/${slug}`, {
-        method: "PUT",
-        body: JSON.stringify(data),
-        headers: { "Content-Type": "application/json" },
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/static-pages"] });
-      toast({ title: "Успех", description: "Страница обновлена" });
-      setEditingPage(null);
-      setIsDialogOpen(false);
-    },
-  });
-
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const data = {
-      slug: formData.get("slug") as string,
-      titleRu: formData.get("titleRu") as string,
-      titleEn: formData.get("titleEn") as string,
-      contentRu: formData.get("contentRu") as string,
-      contentEn: formData.get("contentEn") as string,
-    };
-
-    if (editingPage) {
-      updatePageMutation.mutate({ slug: editingPage.slug, data });
-    } else {
-      createPageMutation.mutate(data);
+  const loadArticles = async () => {
+    try {
+      const response = await fetch("/api/articles", { credentials: "include" });
+      if (response.ok) {
+        setArticles(await response.json());
+      }
+    } catch (error) {
+      toast({ title: "Ошибка", description: "Не удалось загрузить статьи", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const url = editingArticle ? `/api/admin/articles/${editingArticle.id}` : "/api/admin/articles";
+      const method = editingArticle ? "PUT" : "POST";
+      
+      const response = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(formData)
+      });
+
+      if (response.ok) {
+        toast({ title: "Успех", description: editingArticle ? "Статья обновлена" : "Статья создана" });
+        setIsDialogOpen(false);
+        setEditingArticle(null);
+        setFormData({ title: "", content: "", excerpt: "", imageUrl: "" });
+        loadArticles();
+      } else {
+        throw new Error("Save failed");
+      }
+    } catch (error) {
+      toast({ title: "Ошибка", description: "Не удалось сохранить статью", variant: "destructive" });
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    try {
+      const response = await fetch(`/api/admin/articles/${id}`, {
+        method: "DELETE",
+        credentials: "include"
+      });
+
+      if (response.ok) {
+        toast({ title: "Успех", description: "Статья удалена" });
+        loadArticles();
+      } else {
+        throw new Error("Delete failed");
+      }
+    } catch (error) {
+      toast({ title: "Ошибка", description: "Не удалось удалить статью", variant: "destructive" });
+    }
+  };
+
+  if (isLoading) return <div>Загрузка...</div>;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold">Управление статьями</h2>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button onClick={() => {
+              setEditingArticle(null);
+              setFormData({ title: "", content: "", excerpt: "", imageUrl: "" });
+            }}>
+              <Plus className="mr-2 h-4 w-4" />
+              Добавить статью
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>{editingArticle ? "Редактировать статью" : "Добавить статью"}</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleSave} className="space-y-4">
+              <div>
+                <Label htmlFor="title">Заголовок</Label>
+                <Input
+                  id="title"
+                  value={formData.title || ""}
+                  onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="excerpt">Краткое описание</Label>
+                <Textarea
+                  id="excerpt"
+                  value={formData.excerpt || ""}
+                  onChange={(e) => setFormData(prev => ({ ...prev, excerpt: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label htmlFor="content">Содержание</Label>
+                <Textarea
+                  id="content"
+                  value={formData.content || ""}
+                  onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
+                  rows={6}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="imageUrl">URL изображения</Label>
+                <Input
+                  id="imageUrl"
+                  value={formData.imageUrl || ""}
+                  onChange={(e) => setFormData(prev => ({ ...prev, imageUrl: e.target.value }))}
+                />
+              </div>
+              <div className="flex justify-end space-x-2">
+                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                  Отмена
+                </Button>
+                <Button type="submit">
+                  {editingArticle ? "Обновить" : "Создать"}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Заголовок</TableHead>
+                <TableHead>Дата публикации</TableHead>
+                <TableHead>Действия</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {articles.map((article) => (
+                <TableRow key={article.id}>
+                  <TableCell>{article.title}</TableCell>
+                  <TableCell>
+                    {article.publishedAt && typeof article.publishedAt === 'string' ? new Date(article.publishedAt).toLocaleDateString('ru-RU') : '—'}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex space-x-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setEditingArticle(article);
+                          setFormData(article);
+                          setIsDialogOpen(true);
+                        }}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleDelete(article.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function InquiriesManagement() {
+  const [inquiries, setInquiries] = useState<Inquiry[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    loadInquiries();
+  }, []);
+
+  const loadInquiries = async () => {
+    try {
+      const response = await fetch("/api/admin/inquiries", { credentials: "include" });
+      if (response.ok) {
+        setInquiries(await response.json());
+      }
+    } catch (error) {
+      toast({ title: "Ошибка", description: "Не удалось загрузить обращения", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (isLoading) return <div>Загрузка...</div>;
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-2xl font-bold">Обращения клиентов</h2>
+      
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Имя</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Телефон</TableHead>
+                <TableHead>Компания</TableHead>
+                <TableHead>Сообщение</TableHead>
+                <TableHead>Дата</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {inquiries.map((inquiry) => (
+                <TableRow key={inquiry.id}>
+                  <TableCell>{inquiry.name}</TableCell>
+                  <TableCell>{inquiry.email}</TableCell>
+                  <TableCell>{inquiry.phone || "—"}</TableCell>
+                  <TableCell>{inquiry.company || "—"}</TableCell>
+                  <TableCell className="max-w-xs truncate">{inquiry.message}</TableCell>
+                  <TableCell>
+                    {inquiry.createdAt && typeof inquiry.createdAt === 'string' ? new Date(inquiry.createdAt).toLocaleDateString('ru-RU') : '—'}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function StaticPagesManagement() {
+  const [pages, setPages] = useState<StaticPage[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingPage, setEditingPage] = useState<StaticPage | null>(null);
+  const [formData, setFormData] = useState<Partial<InsertStaticPage>>({
+    slug: "",
+    titleRu: "",
+    titleEn: "",
+    contentRu: "",
+    contentEn: ""
+  });
+  const { toast } = useToast();
+
+  useEffect(() => {
+    loadPages();
+  }, []);
+
+  const loadPages = async () => {
+    try {
+      const response = await fetch("/api/static-pages", { credentials: "include" });
+      if (response.ok) {
+        setPages(await response.json());
+      }
+    } catch (error) {
+      toast({ title: "Ошибка", description: "Не удалось загрузить страницы", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const url = editingPage ? `/api/admin/static-pages/${editingPage.slug}` : "/api/admin/static-pages";
+      const method = editingPage ? "PUT" : "POST";
+      
+      const response = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(formData)
+      });
+
+      if (response.ok) {
+        toast({ title: "Успех", description: editingPage ? "Страница обновлена" : "Страница создана" });
+        setIsDialogOpen(false);
+        setEditingPage(null);
+        setFormData({ slug: "", titleRu: "", titleEn: "", contentRu: "", contentEn: "" });
+        loadPages();
+      } else {
+        throw new Error("Save failed");
+      }
+    } catch (error) {
+      toast({ title: "Ошибка", description: "Не удалось сохранить страницу", variant: "destructive" });
+    }
+  };
+
+  if (isLoading) return <div>Загрузка...</div>;
+
+  return (
+    <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Управление статическими страницами</h2>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={() => setEditingPage(null)}>
+            <Button onClick={() => {
+              setEditingPage(null);
+              setFormData({ slug: "", titleRu: "", titleEn: "", contentRu: "", contentEn: "" });
+            }}>
               <Plus className="mr-2 h-4 w-4" />
               Добавить страницу
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogContent className="max-w-4xl">
             <DialogHeader>
-              <DialogTitle>
-                {editingPage ? "Редактировать страницу" : "Добавить страницу"}
-              </DialogTitle>
+              <DialogTitle>{editingPage ? "Редактировать страницу" : "Добавить страницу"}</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSave} className="space-y-4">
               <div>
-                <Label htmlFor="slug">URL-адрес (slug)</Label>
+                <Label htmlFor="slug">Slug (URL)</Label>
                 <Input
                   id="slug"
-                  name="slug"
-                  defaultValue={editingPage?.slug || ""}
-                  placeholder="about-us"
+                  value={formData.slug || ""}
+                  onChange={(e) => setFormData(prev => ({ ...prev, slug: e.target.value }))}
                   required
                   disabled={!!editingPage}
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="titleRu">Заголовок (RU)</Label>
+                  <Label htmlFor="titleRu">Заголовок (русский)</Label>
                   <Input
                     id="titleRu"
-                    name="titleRu"
-                    defaultValue={editingPage?.titleRu || ""}
+                    value={formData.titleRu || ""}
+                    onChange={(e) => setFormData(prev => ({ ...prev, titleRu: e.target.value }))}
                     required
                   />
                 </div>
                 <div>
-                  <Label htmlFor="titleEn">Заголовок (EN)</Label>
+                  <Label htmlFor="titleEn">Заголовок (английский)</Label>
                   <Input
                     id="titleEn"
-                    name="titleEn"
-                    defaultValue={editingPage?.titleEn || ""}
+                    value={formData.titleEn || ""}
+                    onChange={(e) => setFormData(prev => ({ ...prev, titleEn: e.target.value }))}
                     required
                   />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="contentRu">Содержание (RU)</Label>
+                  <Label htmlFor="contentRu">Содержание (русский)</Label>
                   <Textarea
                     id="contentRu"
-                    name="contentRu"
-                    defaultValue={editingPage?.contentRu || ""}
+                    value={formData.contentRu || ""}
+                    onChange={(e) => setFormData(prev => ({ ...prev, contentRu: e.target.value }))}
                     rows={8}
                     required
                   />
                 </div>
                 <div>
-                  <Label htmlFor="contentEn">Содержание (EN)</Label>
+                  <Label htmlFor="contentEn">Содержание (английский)</Label>
                   <Textarea
                     id="contentEn"
-                    name="contentEn"
-                    defaultValue={editingPage?.contentEn || ""}
+                    value={formData.contentEn || ""}
+                    onChange={(e) => setFormData(prev => ({ ...prev, contentEn: e.target.value }))}
                     rows={8}
                     required
                   />
@@ -818,21 +1094,21 @@ function StaticPagesManagement() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>URL</TableHead>
-                <TableHead>Заголовок (RU)</TableHead>
+                <TableHead>Slug</TableHead>
+                <TableHead>Заголовок (РУ)</TableHead>
                 <TableHead>Заголовок (EN)</TableHead>
                 <TableHead>Обновлено</TableHead>
                 <TableHead>Действия</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {pages.map((page: StaticPage) => (
+              {pages.map((page) => (
                 <TableRow key={page.id}>
                   <TableCell>{page.slug}</TableCell>
                   <TableCell>{page.titleRu}</TableCell>
                   <TableCell>{page.titleEn}</TableCell>
                   <TableCell>
-                    {new Date(page.updatedAt).toLocaleDateString('ru-RU')}
+                    {page.updatedAt && typeof page.updatedAt === 'string' ? new Date(page.updatedAt).toLocaleDateString('ru-RU') : '—'}
                   </TableCell>
                   <TableCell>
                     <Button
@@ -840,6 +1116,7 @@ function StaticPagesManagement() {
                       variant="outline"
                       onClick={() => {
                         setEditingPage(page);
+                        setFormData(page);
                         setIsDialogOpen(true);
                       }}
                     >
@@ -856,26 +1133,23 @@ function StaticPagesManagement() {
   );
 }
 
-export default function AdminPanel() {
-  const { admin, isAuthenticated, isLoading, logout } = useAdmin();
+function AdminDashboard({ admin, onLogout }: { admin: any; onLogout: () => void }) {
+  const [activeTab, setActiveTab] = useState("dashboard");
   const { toast } = useToast();
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div>Загрузка...</div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return <LoginForm />;
-  }
 
   const handleLogout = async () => {
     try {
-      await logout();
-      toast({ title: "Выход выполнен", description: "До свидания!" });
+      const response = await fetch("/api/admin/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+      
+      if (response.ok) {
+        onLogout();
+        toast({ title: "Выход выполнен", description: "До свидания!" });
+      } else {
+        throw new Error("Logout failed");
+      }
     } catch (error) {
       toast({ 
         title: "Ошибка", 
@@ -902,44 +1176,121 @@ export default function AdminPanel() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Tabs defaultValue="products" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="products" className="flex items-center space-x-2">
-              <Package className="h-4 w-4" />
-              <span>Товары</span>
+      <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-7">
+            <TabsTrigger value="dashboard">
+              <Settings className="mr-2 h-4 w-4" />
+              Панель
             </TabsTrigger>
-            <TabsTrigger value="categories" className="flex items-center space-x-2">
-              <Settings className="h-4 w-4" />
-              <span>Категории</span>
+            <TabsTrigger value="products">
+              <Package className="mr-2 h-4 w-4" />
+              Товары
             </TabsTrigger>
-            <TabsTrigger value="news" className="flex items-center space-x-2">
-              <FileText className="h-4 w-4" />
-              <span>Новости</span>
+            <TabsTrigger value="categories">
+              <FolderOpen className="mr-2 h-4 w-4" />
+              Категории
             </TabsTrigger>
-            <TabsTrigger value="pages" className="flex items-center space-x-2">
-              <MessageSquare className="h-4 w-4" />
-              <span>Страницы</span>
+            <TabsTrigger value="news">
+              <Newspaper className="mr-2 h-4 w-4" />
+              Новости
+            </TabsTrigger>
+            <TabsTrigger value="articles">
+              <FileText className="mr-2 h-4 w-4" />
+              Статьи
+            </TabsTrigger>
+            <TabsTrigger value="inquiries">
+              <MessageSquare className="mr-2 h-4 w-4" />
+              Обращения
+            </TabsTrigger>
+            <TabsTrigger value="pages">
+              <Settings className="mr-2 h-4 w-4" />
+              Страницы
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="products">
-            <ProductsManagement />
-          </TabsContent>
+          <div className="mt-6">
+            <TabsContent value="dashboard">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Добро пожаловать!</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-gray-600">
+                      Используйте вкладки выше для управления содержимым сайта.
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
 
-          <TabsContent value="categories">
-            <CategoriesManagement />
-          </TabsContent>
+            <TabsContent value="products">
+              <ProductsManagement />
+            </TabsContent>
 
-          <TabsContent value="news">
-            <NewsManagement />
-          </TabsContent>
+            <TabsContent value="categories">
+              <CategoriesManagement />
+            </TabsContent>
 
-          <TabsContent value="pages">
-            <StaticPagesManagement />
-          </TabsContent>
+            <TabsContent value="news">
+              <NewsManagement />
+            </TabsContent>
+
+            <TabsContent value="articles">
+              <ArticlesManagement />
+            </TabsContent>
+
+            <TabsContent value="inquiries">
+              <InquiriesManagement />
+            </TabsContent>
+
+            <TabsContent value="pages">
+              <StaticPagesManagement />
+            </TabsContent>
+          </div>
         </Tabs>
-      </main>
+      </div>
     </div>
   );
+}
+
+export default function AdminPanel() {
+  const [admin, setAdmin] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const response = await fetch("/api/admin/me", {
+          credentials: "include",
+        });
+        
+        if (response.ok) {
+          const adminData = await response.json();
+          setAdmin(adminData);
+        }
+      } catch (error) {
+        console.log("Auth check failed:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkAuth();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div>Загрузка...</div>
+      </div>
+    );
+  }
+
+  if (!admin) {
+    return <LoginForm onLogin={setAdmin} />;
+  }
+
+  return <AdminDashboard admin={admin} onLogout={() => setAdmin(null)} />;
 }

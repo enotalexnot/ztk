@@ -1,13 +1,48 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { useState, useEffect } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 export function useAdmin() {
+  const [admin, setAdmin] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const queryClient = useQueryClient();
 
-  const { data: admin, isLoading, error } = useQuery({
-    queryKey: ["/api/admin/me"],
-    retry: false,
-  });
+  // Check authentication once on mount
+  useEffect(() => {
+    let isMounted = true;
+    
+    const checkAuth = async () => {
+      try {
+        const response = await fetch("/api/admin/me", {
+          credentials: "include",
+        });
+        
+        if (isMounted) {
+          if (response.ok) {
+            const adminData = await response.json();
+            setAdmin(adminData);
+            setIsAuthenticated(true);
+          } else {
+            setAdmin(null);
+            setIsAuthenticated(false);
+          }
+          setIsLoading(false);
+        }
+      } catch (error) {
+        if (isMounted) {
+          setAdmin(null);
+          setIsAuthenticated(false);
+          setIsLoading(false);
+        }
+      }
+    };
+
+    checkAuth();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: { username: string; password: string }) => {
@@ -22,7 +57,9 @@ export function useAdmin() {
       }
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      setAdmin(data.admin);
+      setIsAuthenticated(true);
       queryClient.invalidateQueries({ queryKey: ["/api/admin/me"] });
     },
   });
@@ -39,6 +76,8 @@ export function useAdmin() {
       return response.json();
     },
     onSuccess: () => {
+      setAdmin(null);
+      setIsAuthenticated(false);
       queryClient.invalidateQueries({ queryKey: ["/api/admin/me"] });
     },
   });
@@ -46,7 +85,7 @@ export function useAdmin() {
   return {
     admin,
     isLoading,
-    isAuthenticated: !!admin && !error,
+    isAuthenticated,
     login: loginMutation.mutateAsync,
     logout: logoutMutation.mutateAsync,
     isLoggingIn: loginMutation.isPending,
