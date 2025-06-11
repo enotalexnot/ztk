@@ -1,10 +1,26 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertInquirySchema, insertProductSchema, insertCategorySchema, insertSubcategorySchema, insertNewsSchema, insertArticleSchema } from "@shared/schema";
+import { insertInquirySchema, insertProductSchema, insertCategorySchema, insertSubcategorySchema, insertNewsSchema, insertArticleSchema, insertAdminSchema, insertStaticPageSchema } from "@shared/schema";
 import { z } from "zod";
+import { hashPassword, createAdminSession, validateSession, deleteSession } from "./auth";
+import cookieParser from "cookie-parser";
+
+// Middleware for admin authentication
+async function requireAdmin(req: any, res: any, next: any) {
+  const sessionId = req.cookies.admin_session;
+  const adminId = await validateSession(sessionId);
+  
+  if (!adminId) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  
+  req.adminId = adminId;
+  next();
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  app.use(cookieParser());
   // Get all products
   app.get("/api/products", async (req, res) => {
     try {
@@ -205,6 +221,234 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(inquiries);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch inquiries" });
+    }
+  });
+
+  // Admin authentication routes
+  app.post("/api/admin/login", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      
+      if (!username || !password) {
+        return res.status(400).json({ error: "Username and password required" });
+      }
+      
+      const admin = await storage.getAdminByUsername(username);
+      if (!admin) {
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+      
+      const hashedPassword = hashPassword(password);
+      if (admin.password !== hashedPassword) {
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+      
+      const sessionId = await createAdminSession(admin.id);
+      res.cookie('admin_session', sessionId, { 
+        httpOnly: true, 
+        secure: false, // Set to true in production with HTTPS
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+      });
+      
+      res.json({ success: true, admin: { id: admin.id, username: admin.username } });
+    } catch (error) {
+      res.status(500).json({ error: "Login failed" });
+    }
+  });
+
+  app.post("/api/admin/logout", requireAdmin, async (req: any, res) => {
+    try {
+      const sessionId = req.cookies.admin_session;
+      if (sessionId) {
+        await deleteSession(sessionId);
+      }
+      res.clearCookie('admin_session');
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Logout failed" });
+    }
+  });
+
+  app.get("/api/admin/me", requireAdmin, async (req: any, res) => {
+    try {
+      const admin = await storage.getAdmin(req.adminId);
+      if (!admin) {
+        return res.status(404).json({ error: "Admin not found" });
+      }
+      res.json({ id: admin.id, username: admin.username });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get admin info" });
+    }
+  });
+
+  // Create admin (for setup only - remove in production)
+  app.post("/api/admin/create", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      
+      if (!username || !password) {
+        return res.status(400).json({ error: "Username and password required" });
+      }
+      
+      // Check if admin already exists
+      const existingAdmin = await storage.getAdminByUsername(username);
+      if (existingAdmin) {
+        return res.status(400).json({ error: "Admin already exists" });
+      }
+      
+      const hashedPassword = hashPassword(password);
+      const admin = await storage.createAdmin({ username, password: hashedPassword });
+      
+      res.status(201).json({ success: true, admin: { id: admin.id, username: admin.username } });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create admin" });
+    }
+  });
+
+  // CRUD operations for products (protected)
+  app.put("/api/admin/products/:id", requireAdmin, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid product ID" });
+      }
+      
+      const validatedData = insertProductSchema.partial().parse(req.body);
+      const product = await storage.updateProduct(id, validatedData);
+      res.json(product);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid product data", details: error.errors });
+      }
+      res.status(500).json({ error: "Failed to update product" });
+    }
+  });
+
+  app.delete("/api/admin/products/:id", requireAdmin, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid product ID" });
+      }
+      
+      await storage.deleteProduct(id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete product" });
+    }
+  });
+
+  // CRUD operations for categories (protected)
+  app.put("/api/admin/categories/:id", requireAdmin, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid category ID" });
+      }
+      
+      const validatedData = insertCategorySchema.partial().parse(req.body);
+      const category = await storage.updateCategory(id, validatedData);
+      res.json(category);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid category data", details: error.errors });
+      }
+      res.status(500).json({ error: "Failed to update category" });
+    }
+  });
+
+  app.delete("/api/admin/categories/:id", requireAdmin, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid category ID" });
+      }
+      
+      await storage.deleteCategory(id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete category" });
+    }
+  });
+
+  // CRUD operations for news (protected)
+  app.put("/api/admin/news/:id", requireAdmin, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid news ID" });
+      }
+      
+      const validatedData = insertNewsSchema.partial().parse(req.body);
+      const news = await storage.updateNews(id, validatedData);
+      res.json(news);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid news data", details: error.errors });
+      }
+      res.status(500).json({ error: "Failed to update news" });
+    }
+  });
+
+  app.delete("/api/admin/news/:id", requireAdmin, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid news ID" });
+      }
+      
+      await storage.deleteNews(id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete news" });
+    }
+  });
+
+  // Static pages management
+  app.get("/api/static-pages", async (req, res) => {
+    try {
+      const pages = await storage.getStaticPages();
+      res.json(pages);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch static pages" });
+    }
+  });
+
+  app.get("/api/static-pages/:slug", async (req, res) => {
+    try {
+      const page = await storage.getStaticPage(req.params.slug);
+      if (!page) {
+        return res.status(404).json({ error: "Page not found" });
+      }
+      res.json(page);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch page" });
+    }
+  });
+
+  app.post("/api/admin/static-pages", requireAdmin, async (req: any, res) => {
+    try {
+      const validatedData = insertStaticPageSchema.parse(req.body);
+      const page = await storage.createStaticPage(validatedData);
+      res.status(201).json(page);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid page data", details: error.errors });
+      }
+      res.status(500).json({ error: "Failed to create page" });
+    }
+  });
+
+  app.put("/api/admin/static-pages/:slug", requireAdmin, async (req: any, res) => {
+    try {
+      const validatedData = insertStaticPageSchema.partial().parse(req.body);
+      const page = await storage.updateStaticPage(req.params.slug, validatedData);
+      res.json(page);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid page data", details: error.errors });
+      }
+      res.status(500).json({ error: "Failed to update page" });
     }
   });
 

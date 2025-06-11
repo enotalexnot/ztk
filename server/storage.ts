@@ -1,13 +1,18 @@
 import { 
-  users, products, categories, subcategories, news, articles, inquiries,
+  users, products, categories, subcategories, news, articles, inquiries, admins, staticPages, sessions,
   type User, type InsertUser,
   type Product, type InsertProduct,
   type Category, type InsertCategory,
   type Subcategory, type InsertSubcategory,
   type News, type InsertNews,
   type Article, type InsertArticle,
-  type Inquiry, type InsertInquiry
+  type Inquiry, type InsertInquiry,
+  type Admin, type InsertAdmin,
+  type StaticPage, type InsertStaticPage,
+  type Session, type InsertSession
 } from "@shared/schema";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -21,31 +26,57 @@ export interface IStorage {
   getProductsByCategory(categoryId: number): Promise<Product[]>;
   getProductsBySubcategory(subcategoryId: number): Promise<Product[]>;
   createProduct(product: InsertProduct): Promise<Product>;
+  updateProduct(id: number, product: Partial<InsertProduct>): Promise<Product>;
+  deleteProduct(id: number): Promise<void>;
 
   // Categories
   getCategories(): Promise<Category[]>;
   getCategory(id: number): Promise<Category | undefined>;
   createCategory(category: InsertCategory): Promise<Category>;
+  updateCategory(id: number, category: Partial<InsertCategory>): Promise<Category>;
+  deleteCategory(id: number): Promise<void>;
 
   // Subcategories
   getSubcategories(): Promise<Subcategory[]>;
   getSubcategoriesByCategory(categoryId: number): Promise<Subcategory[]>;
   getSubcategory(id: number): Promise<Subcategory | undefined>;
   createSubcategory(subcategory: InsertSubcategory): Promise<Subcategory>;
+  updateSubcategory(id: number, subcategory: Partial<InsertSubcategory>): Promise<Subcategory>;
+  deleteSubcategory(id: number): Promise<void>;
 
   // News
   getNews(): Promise<News[]>;
   getNewsItem(id: number): Promise<News | undefined>;
   createNews(news: InsertNews): Promise<News>;
+  updateNews(id: number, news: Partial<InsertNews>): Promise<News>;
+  deleteNews(id: number): Promise<void>;
 
   // Articles
   getArticles(): Promise<Article[]>;
   getArticle(id: number): Promise<Article | undefined>;
   createArticle(article: InsertArticle): Promise<Article>;
+  updateArticle(id: number, article: Partial<InsertArticle>): Promise<Article>;
+  deleteArticle(id: number): Promise<void>;
 
   // Inquiries
   getInquiries(): Promise<Inquiry[]>;
   createInquiry(inquiry: InsertInquiry): Promise<Inquiry>;
+
+  // Admins
+  getAdmin(id: number): Promise<Admin | undefined>;
+  getAdminByUsername(username: string): Promise<Admin | undefined>;
+  createAdmin(admin: InsertAdmin): Promise<Admin>;
+
+  // Static Pages
+  getStaticPages(): Promise<StaticPage[]>;
+  getStaticPage(slug: string): Promise<StaticPage | undefined>;
+  createStaticPage(page: InsertStaticPage): Promise<StaticPage>;
+  updateStaticPage(slug: string, page: Partial<InsertStaticPage>): Promise<StaticPage>;
+
+  // Sessions
+  createSession(session: InsertSession): Promise<Session>;
+  getSession(id: string): Promise<Session | undefined>;
+  deleteSession(id: string): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -277,4 +308,218 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+export class DatabaseStorage implements IStorage {
+  // Users
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db.insert(users).values(insertUser).returning();
+    return user;
+  }
+
+  // Products
+  async getProducts(): Promise<Product[]> {
+    return await db.select().from(products);
+  }
+
+  async getProduct(id: number): Promise<Product | undefined> {
+    const [product] = await db.select().from(products).where(eq(products.id, id));
+    return product;
+  }
+
+  async getProductsByCategory(categoryId: number): Promise<Product[]> {
+    return await db.select().from(products).where(eq(products.categoryId, categoryId));
+  }
+
+  async getProductsBySubcategory(subcategoryId: number): Promise<Product[]> {
+    return await db.select().from(products).where(eq(products.subcategoryId, subcategoryId));
+  }
+
+  async createProduct(insertProduct: InsertProduct): Promise<Product> {
+    const [product] = await db.insert(products).values(insertProduct).returning();
+    return product;
+  }
+
+  async updateProduct(id: number, updateData: Partial<InsertProduct>): Promise<Product> {
+    const [product] = await db.update(products).set(updateData).where(eq(products.id, id)).returning();
+    return product;
+  }
+
+  async deleteProduct(id: number): Promise<void> {
+    await db.delete(products).where(eq(products.id, id));
+  }
+
+  // Categories
+  async getCategories(): Promise<Category[]> {
+    return await db.select().from(categories);
+  }
+
+  async getCategory(id: number): Promise<Category | undefined> {
+    const [category] = await db.select().from(categories).where(eq(categories.id, id));
+    return category;
+  }
+
+  async createCategory(insertCategory: InsertCategory): Promise<Category> {
+    const [category] = await db.insert(categories).values(insertCategory).returning();
+    return category;
+  }
+
+  async updateCategory(id: number, updateData: Partial<InsertCategory>): Promise<Category> {
+    const [category] = await db.update(categories).set(updateData).where(eq(categories.id, id)).returning();
+    return category;
+  }
+
+  async deleteCategory(id: number): Promise<void> {
+    await db.delete(categories).where(eq(categories.id, id));
+  }
+
+  // Subcategories
+  async getSubcategories(): Promise<Subcategory[]> {
+    return await db.select().from(subcategories);
+  }
+
+  async getSubcategoriesByCategory(categoryId: number): Promise<Subcategory[]> {
+    return await db.select().from(subcategories).where(eq(subcategories.categoryId, categoryId));
+  }
+
+  async getSubcategory(id: number): Promise<Subcategory | undefined> {
+    const [subcategory] = await db.select().from(subcategories).where(eq(subcategories.id, id));
+    return subcategory;
+  }
+
+  async createSubcategory(insertSubcategory: InsertSubcategory): Promise<Subcategory> {
+    const [subcategory] = await db.insert(subcategories).values(insertSubcategory).returning();
+    return subcategory;
+  }
+
+  async updateSubcategory(id: number, updateData: Partial<InsertSubcategory>): Promise<Subcategory> {
+    const [subcategory] = await db.update(subcategories).set(updateData).where(eq(subcategories.id, id)).returning();
+    return subcategory;
+  }
+
+  async deleteSubcategory(id: number): Promise<void> {
+    await db.delete(subcategories).where(eq(subcategories.id, id));
+  }
+
+  // News
+  async getNews(): Promise<News[]> {
+    return await db.select().from(news);
+  }
+
+  async getNewsItem(id: number): Promise<News | undefined> {
+    const [newsItem] = await db.select().from(news).where(eq(news.id, id));
+    return newsItem;
+  }
+
+  async createNews(insertNews: InsertNews): Promise<News> {
+    const [newsItem] = await db.insert(news).values(insertNews).returning();
+    return newsItem;
+  }
+
+  async updateNews(id: number, updateData: Partial<InsertNews>): Promise<News> {
+    const [newsItem] = await db.update(news).set(updateData).where(eq(news.id, id)).returning();
+    return newsItem;
+  }
+
+  async deleteNews(id: number): Promise<void> {
+    await db.delete(news).where(eq(news.id, id));
+  }
+
+  // Articles
+  async getArticles(): Promise<Article[]> {
+    return await db.select().from(articles);
+  }
+
+  async getArticle(id: number): Promise<Article | undefined> {
+    const [article] = await db.select().from(articles).where(eq(articles.id, id));
+    return article;
+  }
+
+  async createArticle(insertArticle: InsertArticle): Promise<Article> {
+    const [article] = await db.insert(articles).values(insertArticle).returning();
+    return article;
+  }
+
+  async updateArticle(id: number, updateData: Partial<InsertArticle>): Promise<Article> {
+    const [article] = await db.update(articles).set(updateData).where(eq(articles.id, id)).returning();
+    return article;
+  }
+
+  async deleteArticle(id: number): Promise<void> {
+    await db.delete(articles).where(eq(articles.id, id));
+  }
+
+  // Inquiries
+  async getInquiries(): Promise<Inquiry[]> {
+    return await db.select().from(inquiries);
+  }
+
+  async createInquiry(insertInquiry: InsertInquiry): Promise<Inquiry> {
+    const [inquiry] = await db.insert(inquiries).values(insertInquiry).returning();
+    return inquiry;
+  }
+
+  // Admins
+  async getAdmin(id: number): Promise<Admin | undefined> {
+    const [admin] = await db.select().from(admins).where(eq(admins.id, id));
+    return admin;
+  }
+
+  async getAdminByUsername(username: string): Promise<Admin | undefined> {
+    const [admin] = await db.select().from(admins).where(eq(admins.username, username));
+    return admin;
+  }
+
+  async createAdmin(insertAdmin: InsertAdmin): Promise<Admin> {
+    const [admin] = await db.insert(admins).values(insertAdmin).returning();
+    return admin;
+  }
+
+  // Static Pages
+  async getStaticPages(): Promise<StaticPage[]> {
+    return await db.select().from(staticPages);
+  }
+
+  async getStaticPage(slug: string): Promise<StaticPage | undefined> {
+    const [page] = await db.select().from(staticPages).where(eq(staticPages.slug, slug));
+    return page;
+  }
+
+  async createStaticPage(insertPage: InsertStaticPage): Promise<StaticPage> {
+    const [page] = await db.insert(staticPages).values(insertPage).returning();
+    return page;
+  }
+
+  async updateStaticPage(slug: string, updateData: Partial<InsertStaticPage>): Promise<StaticPage> {
+    const [page] = await db.update(staticPages).set({
+      ...updateData,
+      updatedAt: new Date()
+    }).where(eq(staticPages.slug, slug)).returning();
+    return page;
+  }
+
+  // Sessions
+  async createSession(insertSession: InsertSession): Promise<Session> {
+    const [session] = await db.insert(sessions).values(insertSession).returning();
+    return session;
+  }
+
+  async getSession(id: string): Promise<Session | undefined> {
+    const [session] = await db.select().from(sessions).where(eq(sessions.id, id));
+    return session;
+  }
+
+  async deleteSession(id: string): Promise<void> {
+    await db.delete(sessions).where(eq(sessions.id, id));
+  }
+}
+
+export const storage = new DatabaseStorage();

@@ -64,6 +64,30 @@ export const inquiries = pgTable("inquiries", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const admins = pgTable("admins", {
+  id: serial("id").primaryKey(),
+  username: text("username").notNull().unique(),
+  password: text("password").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const staticPages = pgTable("static_pages", {
+  id: serial("id").primaryKey(),
+  slug: text("slug").notNull().unique(),
+  titleRu: text("title_ru").notNull(),
+  titleEn: text("title_en").notNull(),
+  contentRu: text("content_ru").notNull(),
+  contentEn: text("content_en").notNull(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const sessions = pgTable("sessions", {
+  id: text("id").primaryKey(),
+  adminId: integer("admin_id").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
 });
@@ -95,6 +119,20 @@ export const insertInquirySchema = createInsertSchema(inquiries).omit({
   createdAt: true,
 });
 
+export const insertAdminSchema = createInsertSchema(admins).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertStaticPageSchema = createInsertSchema(staticPages).omit({
+  id: true,
+  updatedAt: true,
+});
+
+export const insertSessionSchema = createInsertSchema(sessions).omit({
+  createdAt: true,
+});
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 
@@ -115,3 +153,12 @@ export type InsertArticle = z.infer<typeof insertArticleSchema>;
 
 export type Inquiry = typeof inquiries.$inferSelect;
 export type InsertInquiry = z.infer<typeof insertInquirySchema>;
+
+export type Admin = typeof admins.$inferSelect;
+export type InsertAdmin = z.infer<typeof insertAdminSchema>;
+
+export type StaticPage = typeof staticPages.$inferSelect;
+export type InsertStaticPage = z.infer<typeof insertStaticPageSchema>;
+
+export type Session = typeof sessions.$inferSelect;
+export type InsertSession = z.infer<typeof insertSessionSchema>;
