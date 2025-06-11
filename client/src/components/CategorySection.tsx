@@ -2,12 +2,17 @@ import { useQuery } from "@tanstack/react-query";
 import { type Category } from "@shared/schema";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Zap, Settings, Battery } from "lucide-react";
+import { Zap, Settings, Battery, Car, Wrench, Cpu, Gauge, Power } from "lucide-react";
 
 const iconMap = {
-  "bolt": Zap,
-  "tools": Settings,
-  "battery-full": Battery,
+  "Zap": Zap,
+  "Battery": Battery,
+  "Settings": Settings,
+  "Car": Car,
+  "Wrench": Wrench,
+  "Cpu": Cpu,
+  "Gauge": Gauge,
+  "Power": Power,
 };
 
 export default function CategorySection() {

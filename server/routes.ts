@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { upload } from "./upload";
-import { insertInquirySchema, insertProductSchema, insertCategorySchema, insertSubcategorySchema, insertNewsSchema, insertArticleSchema, insertAdminSchema, insertStaticPageSchema } from "@shared/schema";
+import { insertInquirySchema, insertProductSchema, insertCategorySchema, insertSubcategorySchema, insertNewsSchema, insertArticleSchema, insertAdminSchema, insertStaticPageSchema, insertPartnerSchema, insertHomepageContentSchema } from "@shared/schema";
 import { z } from "zod";
 import { hashPassword, createAdminSession, validateSession, deleteSession } from "./auth";
 import cookieParser from "cookie-parser";
@@ -706,6 +706,107 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid page data", details: error.errors });
       }
       res.status(500).json({ error: "Failed to update page" });
+    }
+  });
+
+  // Partners API routes
+  app.get("/api/partners", async (req, res) => {
+    try {
+      const partners = await storage.getPartners();
+      res.json(partners);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch partners" });
+    }
+  });
+
+  app.post("/api/admin/partners", requireAdmin, async (req: any, res) => {
+    try {
+      const validatedData = insertPartnerSchema.parse(req.body);
+      const partner = await storage.createPartner(validatedData);
+      res.status(201).json(partner);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid partner data", details: error.errors });
+      }
+      res.status(500).json({ error: "Failed to create partner" });
+    }
+  });
+
+  app.put("/api/admin/partners/:id", requireAdmin, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid partner ID" });
+      }
+      const validatedData = insertPartnerSchema.partial().parse(req.body);
+      const partner = await storage.updatePartner(id, validatedData);
+      res.json(partner);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid partner data", details: error.errors });
+      }
+      res.status(500).json({ error: "Failed to update partner" });
+    }
+  });
+
+  app.delete("/api/admin/partners/:id", requireAdmin, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid partner ID" });
+      }
+      await storage.deletePartner(id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete partner" });
+    }
+  });
+
+  // Homepage content API routes
+  app.get("/api/homepage-content", async (req, res) => {
+    try {
+      const content = await storage.getHomepageContent();
+      res.json(content);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch homepage content" });
+    }
+  });
+
+  app.get("/api/homepage-content/:key", async (req, res) => {
+    try {
+      const content = await storage.getHomepageContentByKey(req.params.key);
+      if (!content) {
+        return res.status(404).json({ error: "Content not found" });
+      }
+      res.json(content);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch content" });
+    }
+  });
+
+  app.put("/api/admin/homepage-content/:key", requireAdmin, async (req: any, res) => {
+    try {
+      const validatedData = insertHomepageContentSchema.partial().parse(req.body);
+      const content = await storage.updateHomepageContent(req.params.key, validatedData);
+      res.json(content);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid content data", details: error.errors });
+      }
+      res.status(500).json({ error: "Failed to update content" });
+    }
+  });
+
+  app.post("/api/admin/homepage-content", requireAdmin, async (req: any, res) => {
+    try {
+      const validatedData = insertHomepageContentSchema.parse(req.body);
+      const content = await storage.createHomepageContent(validatedData);
+      res.status(201).json(content);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid content data", details: error.errors });
+      }
+      res.status(500).json({ error: "Failed to create content" });
     }
   });
 

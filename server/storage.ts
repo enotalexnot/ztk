@@ -79,6 +79,19 @@ export interface IStorage {
   createSession(session: InsertSession): Promise<Session>;
   getSession(id: string): Promise<Session | undefined>;
   deleteSession(id: string): Promise<void>;
+
+  // Partners
+  getPartners(): Promise<Partner[]>;
+  getPartner(id: number): Promise<Partner | undefined>;
+  createPartner(partner: InsertPartner): Promise<Partner>;
+  updatePartner(id: number, partner: Partial<InsertPartner>): Promise<Partner>;
+  deletePartner(id: number): Promise<void>;
+
+  // Homepage Content
+  getHomepageContent(): Promise<HomepageContent[]>;
+  getHomepageContentByKey(key: string): Promise<HomepageContent | undefined>;
+  createHomepageContent(content: InsertHomepageContent): Promise<HomepageContent>;
+  updateHomepageContent(key: string, content: Partial<InsertHomepageContent>): Promise<HomepageContent>;
 }
 
 export class MemStorage implements IStorage {
@@ -521,6 +534,56 @@ export class DatabaseStorage implements IStorage {
 
   async deleteSession(id: string): Promise<void> {
     await db.delete(sessions).where(eq(sessions.id, id));
+  }
+
+  // Partners
+  async getPartners(): Promise<Partner[]> {
+    return await db.select().from(partners);
+  }
+
+  async getPartner(id: number): Promise<Partner | undefined> {
+    const [partner] = await db.select().from(partners).where(eq(partners.id, id));
+    return partner;
+  }
+
+  async createPartner(insertPartner: InsertPartner): Promise<Partner> {
+    const [partner] = await db.insert(partners).values(insertPartner).returning();
+    return partner;
+  }
+
+  async updatePartner(id: number, updateData: Partial<InsertPartner>): Promise<Partner> {
+    const [partner] = await db.update(partners).set({
+      ...updateData,
+      updatedAt: new Date()
+    }).where(eq(partners.id, id)).returning();
+    return partner;
+  }
+
+  async deletePartner(id: number): Promise<void> {
+    await db.delete(partners).where(eq(partners.id, id));
+  }
+
+  // Homepage Content
+  async getHomepageContent(): Promise<HomepageContent[]> {
+    return await db.select().from(homepageContent);
+  }
+
+  async getHomepageContentByKey(key: string): Promise<HomepageContent | undefined> {
+    const [content] = await db.select().from(homepageContent).where(eq(homepageContent.sectionKey, key));
+    return content;
+  }
+
+  async createHomepageContent(insertContent: InsertHomepageContent): Promise<HomepageContent> {
+    const [content] = await db.insert(homepageContent).values(insertContent).returning();
+    return content;
+  }
+
+  async updateHomepageContent(key: string, updateData: Partial<InsertHomepageContent>): Promise<HomepageContent> {
+    const [content] = await db.update(homepageContent).set({
+      ...updateData,
+      updatedAt: new Date()
+    }).where(eq(homepageContent.sectionKey, key)).returning();
+    return content;
   }
 }
 
