@@ -114,10 +114,14 @@ export default function AdminContentManagement() {
 
   const updateMenuMutation = useMutation({
     mutationFn: async ({ id, ...data }: Partial<MenuItem> & { id: number }) => {
-      return apiRequest(`/api/admin/menu-items/${id}`, {
+      const response = await fetch(`/api/admin/menu-items/${id}`, {
         method: "PUT",
-        body: data,
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(data),
       });
+      if (!response.ok) throw new Error('Failed to update menu item');
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/menu-items"] });
@@ -127,9 +131,12 @@ export default function AdminContentManagement() {
 
   const deleteMenuMutation = useMutation({
     mutationFn: async (id: number) => {
-      return apiRequest(`/api/admin/menu-items/${id}`, {
+      const response = await fetch(`/api/admin/menu-items/${id}`, {
         method: "DELETE",
+        credentials: "include",
       });
+      if (!response.ok) throw new Error('Failed to delete menu item');
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/menu-items"] });
@@ -140,10 +147,14 @@ export default function AdminContentManagement() {
   // Mutations for slider items
   const createSliderMutation = useMutation({
     mutationFn: async (data: Partial<SliderItem>) => {
-      return apiRequest("/api/admin/slider-items", {
+      const response = await fetch("/api/admin/slider-items", {
         method: "POST",
-        body: data,
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(data),
       });
+      if (!response.ok) throw new Error('Failed to create slider item');
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/slider-items"] });
@@ -154,10 +165,14 @@ export default function AdminContentManagement() {
 
   const updateSliderMutation = useMutation({
     mutationFn: async ({ id, ...data }: Partial<SliderItem> & { id: number }) => {
-      return apiRequest(`/api/admin/slider-items/${id}`, {
+      const response = await fetch(`/api/admin/slider-items/${id}`, {
         method: "PUT",
-        body: data,
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(data),
       });
+      if (!response.ok) throw new Error('Failed to update slider item');
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/slider-items"] });
@@ -167,9 +182,12 @@ export default function AdminContentManagement() {
 
   const deleteSliderMutation = useMutation({
     mutationFn: async (id: number) => {
-      return apiRequest(`/api/admin/slider-items/${id}`, {
+      const response = await fetch(`/api/admin/slider-items/${id}`, {
         method: "DELETE",
+        credentials: "include",
       });
+      if (!response.ok) throw new Error('Failed to delete slider item');
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/slider-items"] });
@@ -177,8 +195,30 @@ export default function AdminContentManagement() {
     },
   });
 
+  // Mutations for homepage content
+  const updateHomepageContentMutation = useMutation({
+    mutationFn: async ({ sectionKey, data }: { sectionKey: string; data: Partial<HomepageContent> }) => {
+      const response = await fetch(`/api/admin/homepage-content/${sectionKey}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error('Failed to update homepage content');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/homepage-content"] });
+      toast({ title: "Контент обновлен", description: "Изменения сохранены успешно" });
+    },
+    onError: () => {
+      toast({ title: "Ошибка", description: "Не удалось сохранить контент", variant: "destructive" });
+    },
+  });
+
   // State for forms
   const [editingSettings, setEditingSettings] = useState<Record<string, string>>({});
+  const [editingContent, setEditingContent] = useState<Record<string, Partial<HomepageContent>>>({});
   const [newMenuItem, setNewMenuItem] = useState<Partial<MenuItem>>({ title: "", url: "", order: 0, isActive: true });
   const [editingMenu, setEditingMenu] = useState<number | null>(null);
   const [newSliderItem, setNewSliderItem] = useState<Partial<SliderItem>>({ title: "", order: 0, isActive: true });
@@ -188,7 +228,7 @@ export default function AdminContentManagement() {
     updateSettingMutation.mutate({ key, value });
   };
 
-  if (settingsLoading || menuLoading || sliderLoading) {
+  if (settingsLoading || menuLoading || sliderLoading || contentLoading) {
     return <div className="p-6">Загрузка...</div>;
   }
 
@@ -200,10 +240,14 @@ export default function AdminContentManagement() {
       </div>
 
       <Tabs defaultValue="settings" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="settings" className="flex items-center gap-2">
             <Settings className="h-4 w-4" />
             Настройки
+          </TabsTrigger>
+          <TabsTrigger value="homepage" className="flex items-center gap-2">
+            <Home className="h-4 w-4" />
+            Главная
           </TabsTrigger>
           <TabsTrigger value="menu" className="flex items-center gap-2">
             <Menu className="h-4 w-4" />
@@ -228,7 +272,7 @@ export default function AdminContentManagement() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {siteSettings?.map((setting: SiteSettings) => (
+              {siteSettings.map((setting: SiteSettings) => (
                 <div key={setting.key} className="grid grid-cols-3 gap-4 items-center">
                   <Label className="font-medium">{setting.description}</Label>
                   <div className="col-span-2 flex gap-2">
