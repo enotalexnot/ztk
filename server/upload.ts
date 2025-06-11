@@ -65,10 +65,21 @@ const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCa
   
   if (type === 'images') {
     // Для изображений
-    if (file.mimetype.startsWith('image/')) {
+    const allowedImageMimes = [
+      'image/jpeg',
+      'image/jpg', 
+      'image/png',
+      'image/gif',
+      'image/webp',
+      'image/svg+xml',
+      'image/bmp',
+      'image/tiff'
+    ];
+    
+    if (file.mimetype.startsWith('image/') || allowedImageMimes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Только изображения разрешены'));
+      cb(new Error(`Неподдерживаемый тип изображения: ${file.mimetype}`));
     }
   } else {
     // Для файлов - разрешаем документы

@@ -14,7 +14,7 @@ export default function ProductDetail() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   const { data: product, isLoading } = useQuery<Product>({
-    queryKey: ['/api/products', id],
+    queryKey: [`/api/products/${id}`],
     enabled: !!id,
   });
 
