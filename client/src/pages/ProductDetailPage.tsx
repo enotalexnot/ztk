@@ -55,10 +55,10 @@ export default function ProductDetailPage() {
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-            {t.productNotFound}
+            Товар не найден
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            {t.productNotFoundDesc}
+            Запрашиваемый товар не существует или был удален
           </p>
         </div>
       </div>
@@ -81,9 +81,9 @@ export default function ProductDetailPage() {
     <div className="container mx-auto px-4 py-8">
       {/* Breadcrumb */}
       <nav className="flex mb-8 text-sm text-gray-600 dark:text-gray-400">
-        <span>{t.home}</span>
+        <span>Главная</span>
         <span className="mx-2">/</span>
-        <span>{t.catalog}</span>
+        <span>Каталог</span>
         <span className="mx-2">/</span>
         <span className="text-gray-900 dark:text-white">{product.name}</span>
       </nav>
