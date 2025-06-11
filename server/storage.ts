@@ -1,5 +1,5 @@
 import { 
-  users, products, categories, subcategories, news, articles, inquiries, admins, staticPages, sessions, partners, homepageContent,
+  users, products, categories, subcategories, news, articles, inquiries, admins, staticPages, sessions, partners, homepageContent, siteSettings, menuItems, sliderItems,
   type User, type InsertUser,
   type Product, type InsertProduct,
   type Category, type InsertCategory,
@@ -11,7 +11,10 @@ import {
   type StaticPage, type InsertStaticPage,
   type Session, type InsertSession,
   type Partner, type InsertPartner,
-  type HomepageContent, type InsertHomepageContent
+  type HomepageContent, type InsertHomepageContent,
+  type SiteSettings, type InsertSiteSettings,
+  type MenuItem, type InsertMenuItem,
+  type SliderItem, type InsertSliderItem
 } from "@shared/schema";
 import { db } from "./db";
 import { eq } from "drizzle-orm";

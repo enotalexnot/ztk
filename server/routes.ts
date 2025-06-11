@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { upload } from "./upload";
-import { insertInquirySchema, insertProductSchema, insertCategorySchema, insertSubcategorySchema, insertNewsSchema, insertArticleSchema, insertAdminSchema, insertStaticPageSchema, insertPartnerSchema, insertHomepageContentSchema } from "@shared/schema";
+import { insertInquirySchema, insertProductSchema, insertCategorySchema, insertSubcategorySchema, insertNewsSchema, insertArticleSchema, insertAdminSchema, insertStaticPageSchema, insertPartnerSchema, insertHomepageContentSchema, insertMenuItemSchema, insertSliderItemSchema } from "@shared/schema";
 import { z } from "zod";
 import { hashPassword, createAdminSession, validateSession, deleteSession } from "./auth";
 import cookieParser from "cookie-parser";
@@ -807,6 +807,147 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid content data", details: error.errors });
       }
       res.status(500).json({ error: "Failed to create content" });
+    }
+  });
+
+  // Site Settings API routes
+  app.get("/api/site-settings", async (req, res) => {
+    try {
+      const settings = await storage.getSiteSettings();
+      res.json(settings);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch site settings" });
+    }
+  });
+
+  app.get("/api/site-settings/:key", async (req, res) => {
+    try {
+      const setting = await storage.getSiteSetting(req.params.key);
+      if (!setting) {
+        return res.status(404).json({ error: "Setting not found" });
+      }
+      res.json(setting);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch setting" });
+    }
+  });
+
+  app.put("/api/admin/site-settings/:key", requireAdmin, async (req: any, res) => {
+    try {
+      const { value } = req.body;
+      if (typeof value !== 'string') {
+        return res.status(400).json({ error: "Value must be a string" });
+      }
+      const setting = await storage.updateSiteSetting(req.params.key, value);
+      res.json(setting);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update setting" });
+    }
+  });
+
+  // Menu Items API routes
+  app.get("/api/menu-items", async (req, res) => {
+    try {
+      const items = await storage.getMenuItems();
+      res.json(items);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch menu items" });
+    }
+  });
+
+  app.post("/api/admin/menu-items", requireAdmin, async (req: any, res) => {
+    try {
+      const validatedData = insertMenuItemSchema.parse(req.body);
+      const item = await storage.createMenuItem(validatedData);
+      res.status(201).json(item);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid menu item data", details: error.errors });
+      }
+      res.status(500).json({ error: "Failed to create menu item" });
+    }
+  });
+
+  app.put("/api/admin/menu-items/:id", requireAdmin, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid menu item ID" });
+      }
+      const validatedData = insertMenuItemSchema.partial().parse(req.body);
+      const item = await storage.updateMenuItem(id, validatedData);
+      res.json(item);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid menu item data", details: error.errors });
+      }
+      res.status(500).json({ error: "Failed to update menu item" });
+    }
+  });
+
+  app.delete("/api/admin/menu-items/:id", requireAdmin, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid menu item ID" });
+      }
+      await storage.deleteMenuItem(id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete menu item" });
+    }
+  });
+
+  // Slider Items API routes
+  app.get("/api/slider-items", async (req, res) => {
+    try {
+      const items = await storage.getSliderItems();
+      res.json(items);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch slider items" });
+    }
+  });
+
+  app.post("/api/admin/slider-items", requireAdmin, async (req: any, res) => {
+    try {
+      const validatedData = insertSliderItemSchema.parse(req.body);
+      const item = await storage.createSliderItem(validatedData);
+      res.status(201).json(item);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid slider item data", details: error.errors });
+      }
+      res.status(500).json({ error: "Failed to create slider item" });
+    }
+  });
+
+  app.put("/api/admin/slider-items/:id", requireAdmin, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid slider item ID" });
+      }
+      const validatedData = insertSliderItemSchema.partial().parse(req.body);
+      const item = await storage.updateSliderItem(id, validatedData);
+      res.json(item);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid slider item data", details: error.errors });
+      }
+      res.status(500).json({ error: "Failed to update slider item" });
+    }
+  });
+
+  app.delete("/api/admin/slider-items/:id", requireAdmin, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ error: "Invalid slider item ID" });
+      }
+      await storage.deleteSliderItem(id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete slider item" });
     }
   });
 
