@@ -20,6 +20,12 @@ export const products = pgTable("products", {
   specifications: text("specifications"),
   model: text("model"),
   brand: text("brand"),
+  images: text("images").array(),
+  files: text("files").array(),
+  detailedDescription: text("detailed_description"),
+  warranty: text("warranty"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const subcategories = pgTable("subcategories", {
