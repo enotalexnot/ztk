@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Edit, Trash2, Save, Settings, Menu, Image, Sliders } from "lucide-react";
+import { Plus, Edit, Trash2, Save, Settings, Menu, Image, Sliders, Home } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface SiteSettings {
@@ -40,23 +40,36 @@ interface SliderItem {
   isActive: boolean;
 }
 
+interface HomepageContent {
+  id: number;
+  sectionKey: string;
+  title: string;
+  content?: string;
+  imageUrl?: string;
+}
+
 export default function AdminContentManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   // Site Settings
-  const { data: siteSettings, isLoading: settingsLoading } = useQuery({
+  const { data: siteSettings = [], isLoading: settingsLoading } = useQuery({
     queryKey: ["/api/site-settings"],
   });
 
   // Menu Items
-  const { data: menuItems, isLoading: menuLoading } = useQuery({
+  const { data: menuItems = [], isLoading: menuLoading } = useQuery({
     queryKey: ["/api/menu-items"],
   });
 
   // Slider Items  
-  const { data: sliderItems, isLoading: sliderLoading } = useQuery({
+  const { data: sliderItems = [], isLoading: sliderLoading } = useQuery({
     queryKey: ["/api/slider-items"],
+  });
+
+  // Homepage Content
+  const { data: homepageContent = [], isLoading: contentLoading } = useQuery({
+    queryKey: ["/api/homepage-content"],
   });
 
   // Mutations for site settings
@@ -83,10 +96,14 @@ export default function AdminContentManagement() {
   // Mutations for menu items
   const createMenuMutation = useMutation({
     mutationFn: async (data: Partial<MenuItem>) => {
-      return apiRequest("/api/admin/menu-items", {
+      const response = await fetch("/api/admin/menu-items", {
         method: "POST",
-        body: data,
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(data),
       });
+      if (!response.ok) throw new Error('Failed to create menu item');
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/menu-items"] });
