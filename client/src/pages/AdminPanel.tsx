@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { LogOut, Plus, Pencil, Trash2, Package, FileText, MessageSquare, Settings, FolderOpen, Newspaper } from "lucide-react";
+import AdminProductForm from "@/components/AdminProductForm";
 import type { InsertProduct, InsertCategory, InsertNews, InsertArticle, InsertStaticPage, Product, Category, News, Article, StaticPage, Inquiry } from "@shared/schema";
 
 function LoginForm({ onLogin }: { onLogin: (admin: any) => void }) {
@@ -94,18 +95,8 @@ function ProductsManagement() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [formData, setFormData] = useState<Partial<InsertProduct>>({
-    name: "",
-    description: "",
-    categoryId: 0,
-    price: "",
-    imageUrl: "",
-    brand: "",
-    model: "",
-    specifications: ""
-  });
   const { toast } = useToast();
 
   useEffect(() => {
@@ -130,31 +121,15 @@ function ProductsManagement() {
     }
   };
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const url = editingProduct ? `/api/admin/products/${editingProduct.id}` : "/api/admin/products";
-      const method = editingProduct ? "PUT" : "POST";
-      
-      const response = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(formData)
-      });
+  const handleFormSuccess = () => {
+    setShowForm(false);
+    setEditingProduct(null);
+    loadData();
+  };
 
-      if (response.ok) {
-        toast({ title: "Успех", description: editingProduct ? "Товар обновлен" : "Товар создан" });
-        setIsDialogOpen(false);
-        setEditingProduct(null);
-        setFormData({ name: "", description: "", categoryId: 0, price: "", imageUrl: "", brand: "", model: "", specifications: "" });
-        loadData();
-      } else {
-        throw new Error("Save failed");
-      }
-    } catch (error) {
-      toast({ title: "Ошибка", description: "Не удалось сохранить товар", variant: "destructive" });
-    }
+  const handleFormCancel = () => {
+    setShowForm(false);
+    setEditingProduct(null);
   };
 
   const handleDelete = async (id: number) => {
@@ -177,90 +152,27 @@ function ProductsManagement() {
 
   if (isLoading) return <div>Загрузка...</div>;
 
+  if (showForm) {
+    return (
+      <AdminProductForm 
+        product={editingProduct ?? undefined}
+        onSuccess={handleFormSuccess}
+        onCancel={handleFormCancel}
+      />
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Управление товарами</h2>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={() => {
-              setEditingProduct(null);
-              setFormData({ name: "", description: "", categoryId: 0, price: "", imageUrl: "", brand: "", model: "", specifications: "" });
-            }}>
-              <Plus className="mr-2 h-4 w-4" />
-              Добавить товар
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{editingProduct ? "Редактировать товар" : "Добавить товар"}</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSave} className="space-y-4">
-              <div>
-                <Label htmlFor="name">Название</Label>
-                <Input
-                  id="name"
-                  value={formData.name || ""}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="category">Категория</Label>
-                <Select value={String(formData.categoryId || "")} onValueChange={(value) => setFormData(prev => ({ ...prev, categoryId: Number(value) }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Выберите категорию" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((cat) => (
-                      <SelectItem key={cat.id} value={String(cat.id)}>{cat.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="description">Описание</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description || ""}
-                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                />
-              </div>
-              <div>
-                <Label htmlFor="price">Цена</Label>
-                <Input
-                  id="price"
-                  value={formData.price || ""}
-                  onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
-                />
-              </div>
-              <div>
-                <Label htmlFor="brand">Бренд</Label>
-                <Input
-                  id="brand"
-                  value={formData.brand || ""}
-                  onChange={(e) => setFormData(prev => ({ ...prev, brand: e.target.value }))}
-                />
-              </div>
-              <div>
-                <Label htmlFor="model">Модель</Label>
-                <Input
-                  id="model"
-                  value={formData.model || ""}
-                  onChange={(e) => setFormData(prev => ({ ...prev, model: e.target.value }))}
-                />
-              </div>
-              <div className="flex justify-end space-x-2">
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                  Отмена
-                </Button>
-                <Button type="submit">
-                  {editingProduct ? "Обновить" : "Создать"}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={() => {
+          setEditingProduct(null);
+          setShowForm(true);
+        }}>
+          <Plus className="mr-2 h-4 w-4" />
+          Добавить товар
+        </Button>
       </div>
 
       <Card>
@@ -289,8 +201,7 @@ function ProductsManagement() {
                         variant="outline"
                         onClick={() => {
                           setEditingProduct(product);
-                          setFormData(product);
-                          setIsDialogOpen(true);
+                          setShowForm(true);
                         }}
                       >
                         <Pencil className="h-4 w-4" />
