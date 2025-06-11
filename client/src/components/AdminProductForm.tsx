@@ -22,6 +22,8 @@ const productFormSchema = insertProductSchema.extend({
   specifications: z.string().optional(),
   images: z.array(z.string()).optional(),
   files: z.array(z.string()).optional(),
+  detailedDescription: z.string().optional(),
+  warranty: z.string().optional(),
 })
 
 type ProductFormData = z.infer<typeof productFormSchema>
@@ -56,42 +58,58 @@ export default function AdminProductForm({ product, onSuccess, onCancel }: Admin
     defaultValues: {
       name: product?.name || '',
       description: product?.description || '',
-      categoryId: product?.categoryId || undefined,
+      categoryId: product?.categoryId || 0,
       subcategoryId: product?.subcategoryId || undefined,
       price: product?.price || '',
       imageUrl: product?.imageUrl || '',
-      brand: product?.brand || '',
-      model: product?.model || '',
       featured: product?.featured || false,
+      model: product?.model || '',
+      brand: product?.brand || '',
+      specifications: product?.specifications || '',
+      images: product?.images || [],
+      files: product?.files || [],
+      detailedDescription: product?.detailedDescription || '',
+      warranty: product?.warranty || '',
     },
   })
 
-  const createMutation = useMutation({
+  const createProductMutation = useMutation({
     mutationFn: async (data: InsertProduct) => {
-      return await apiRequest('POST', '/api/admin/products', data)
+      const response = await fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (!response.ok) throw new Error('Failed to create product')
+      return response.json()
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/products'] })
-      toast({ title: 'Продукт создан успешно' })
+      toast({ title: 'Успех', description: 'Товар успешно создан' })
       onSuccess?.()
     },
     onError: () => {
-      toast({ title: 'Ошибка при создании продукта', variant: 'destructive' })
+      toast({ title: 'Ошибка', description: 'Не удалось создать товар', variant: 'destructive' })
     },
   })
 
-  const updateMutation = useMutation({
+  const updateProductMutation = useMutation({
     mutationFn: async (data: InsertProduct) => {
-      return await apiRequest('PUT', `/api/admin/products/${product?.id}`, data)
+      const response = await fetch(`/api/products/${product?.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (!response.ok) throw new Error('Failed to update product')
+      return response.json()
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/products'] })
-      queryClient.invalidateQueries({ queryKey: [`/api/products/${product?.id}`] })
-      toast({ title: 'Продукт обновлен успешно' })
+      toast({ title: 'Успех', description: 'Товар успешно обновлен' })
       onSuccess?.()
     },
     onError: () => {
-      toast({ title: 'Ошибка при обновлении продукта', variant: 'destructive' })
+      toast({ title: 'Ошибка', description: 'Не удалось обновить товар', variant: 'destructive' })
     },
   })
 
@@ -105,14 +123,13 @@ export default function AdminProductForm({ product, onSuccess, onCancel }: Admin
 
   const removeSpecification = (key: string) => {
     setSpecifications(prev => {
-      const newSpecs = { ...prev }
-      delete newSpecs[key]
-      return newSpecs
+      const { [key]: _, ...rest } = prev
+      return rest
     })
   }
 
   const addImage = () => {
-    if (newImageUrl && !images.includes(newImageUrl)) {
+    if (newImageUrl && images.length < 10) {
       setImages(prev => [...prev, newImageUrl])
       setNewImageUrl('')
     }
@@ -123,7 +140,7 @@ export default function AdminProductForm({ product, onSuccess, onCancel }: Admin
   }
 
   const addFile = () => {
-    if (newFileName && !files.includes(newFileName)) {
+    if (newFileName && files.length < 10) {
       setFiles(prev => [...prev, newFileName])
       setNewFileName('')
     }
@@ -144,153 +161,268 @@ export default function AdminProductForm({ product, onSuccess, onCancel }: Admin
     }
 
     if (product) {
-      updateMutation.mutate(productData)
+      updateProductMutation.mutate(productData)
     } else {
-      createMutation.mutate(productData)
+      createProductMutation.mutate(productData)
     }
   }
 
+  const isLoading = createProductMutation.isPending || updateProductMutation.isPending
+
   return (
-    <Card className="w-full max-w-4xl mx-auto">
-      <CardHeader>
-        <CardTitle>{product ? 'Редактировать продукт' : 'Создать новый продукт'}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          <Tabs defaultValue="basic" className="w-full">
-            <TabsList className="grid w-full grid-cols-5">
-              <TabsTrigger value="basic">Основная информация</TabsTrigger>
-              <TabsTrigger value="specs">Характеристики</TabsTrigger>
-              <TabsTrigger value="media">Изображения</TabsTrigger>
-              <TabsTrigger value="files">Файлы</TabsTrigger>
-              <TabsTrigger value="content">Контент</TabsTrigger>
-            </TabsList>
+    <div className="container mx-auto p-6">
+      <div className="flex items-center gap-4 mb-6">
+        <Button variant="outline" onClick={onCancel}>
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Назад
+        </Button>
+        <h1 className="text-2xl font-bold">
+          {product ? 'Редактировать товар' : 'Добавить товар'}
+        </h1>
+      </div>
 
-            <TabsContent value="basic" className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <Tabs defaultValue="basic" className="w-full">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="basic">Основное</TabsTrigger>
+            <TabsTrigger value="media">Медиа</TabsTrigger>
+            <TabsTrigger value="description">Описание</TabsTrigger>
+            <TabsTrigger value="specs">Характеристики</TabsTrigger>
+            <TabsTrigger value="warranty">Гарантия</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="basic" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Основная информация</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Название товара *</Label>
+                    <Input
+                      id="name"
+                      {...form.register('name')}
+                      placeholder="Введите название товара"
+                    />
+                    {form.formState.errors.name && (
+                      <p className="text-sm text-red-500">{form.formState.errors.name.message}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="model">Модель</Label>
+                    <Input
+                      id="model"
+                      {...form.register('model')}
+                      placeholder="Введите модель"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="brand">Бренд</Label>
+                    <Input
+                      id="brand"
+                      {...form.register('brand')}
+                      placeholder="Введите бренд"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="price">Цена</Label>
+                    <Input
+                      id="price"
+                      {...form.register('price')}
+                      placeholder="Введите цену или 'По запросу'"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="categoryId">Категория *</Label>
+                    <Select
+                      value={form.watch('categoryId')?.toString()}
+                      onValueChange={(value) => form.setValue('categoryId', parseInt(value))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Выберите категорию" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categories?.map((category) => (
+                          <SelectItem key={category.id} value={category.id.toString()}>
+                            {category.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {form.formState.errors.categoryId && (
+                      <p className="text-sm text-red-500">{form.formState.errors.categoryId.message}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="imageUrl">Основное изображение (URL)</Label>
+                    <Input
+                      id="imageUrl"
+                      {...form.register('imageUrl')}
+                      placeholder="https://example.com/image.jpg"
+                    />
+                  </div>
+                </div>
+
                 <div className="space-y-2">
-                  <Label htmlFor="name">Название товара *</Label>
-                  <Input
-                    id="name"
-                    {...form.register('name')}
-                    placeholder="Введите название товара"
+                  <Label htmlFor="description">Краткое описание</Label>
+                  <Textarea
+                    id="description"
+                    {...form.register('description')}
+                    placeholder="Введите краткое описание товара"
+                    rows={3}
                   />
-                  {form.formState.errors.name && (
-                    <p className="text-sm text-red-500">{form.formState.errors.name.message}</p>
-                  )}
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="categoryId">Категория *</Label>
-                  <Select
-                    value={form.watch('categoryId')?.toString()}
-                    onValueChange={(value) => form.setValue('categoryId', parseInt(value))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Выберите категорию" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories?.map((category) => (
-                        <SelectItem key={category.id} value={category.id.toString()}>
-                          {category.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {form.formState.errors.categoryId && (
-                    <p className="text-sm text-red-500">{form.formState.errors.categoryId.message}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="brand">Бренд</Label>
-                  <Input
-                    id="brand"
-                    {...form.register('brand')}
-                    placeholder="Введите бренд"
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="featured"
+                    checked={Boolean(form.watch('featured'))}
+                    onCheckedChange={(checked) => form.setValue('featured', !!checked)}
                   />
+                  <Label htmlFor="featured">Рекомендуемый товар</Label>
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-                <div className="space-y-2">
-                  <Label htmlFor="model">Модель</Label>
+          <TabsContent value="media" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Image className="h-5 w-5" />
+                  Дополнительные изображения (до 10)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex gap-2">
                   <Input
-                    id="model"
-                    {...form.register('model')}
-                    placeholder="Введите модель"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="price">Цена</Label>
-                  <Input
-                    id="price"
-                    {...form.register('price')}
-                    placeholder="Введите цену"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="imageUrl">Основное изображение</Label>
-                  <Input
-                    id="imageUrl"
-                    {...form.register('imageUrl')}
+                    value={newImageUrl}
+                    onChange={(e) => setNewImageUrl(e.target.value)}
                     placeholder="URL изображения"
+                    className="flex-1"
                   />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="description">Краткое описание</Label>
-                <Textarea
-                  id="description"
-                  {...form.register('description')}
-                  placeholder="Введите краткое описание товара"
-                  rows={3}
-                />
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="featured"
-                  {...form.register('featured')}
-                  className="w-4 h-4"
-                />
-                <Label htmlFor="featured">Рекомендуемый товар</Label>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="specs" className="space-y-4">
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Технические характеристики</h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                  <Input
-                    placeholder="Название характеристики"
-                    value={newSpecKey}
-                    onChange={(e) => setNewSpecKey(e.target.value)}
-                  />
-                  <Input
-                    placeholder="Значение"
-                    value={newSpecValue}
-                    onChange={(e) => setNewSpecValue(e.target.value)}
-                  />
-                  <Button type="button" onClick={addSpecification}>
+                  <Button
+                    type="button"
+                    onClick={addImage}
+                    disabled={images.length >= 10}
+                    variant="outline"
+                  >
                     <Plus className="h-4 w-4 mr-2" />
                     Добавить
                   </Button>
                 </div>
+                <div className="flex flex-wrap gap-2">
+                  {images.map((image, index) => (
+                    <Badge key={index} variant="secondary" className="text-sm">
+                      {image.length > 50 ? `${image.substring(0, 50)}...` : image}
+                      <button
+                        type="button"
+                        onClick={() => removeImage(index)}
+                        className="ml-2 text-red-500 hover:text-red-700"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
 
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Файлы для скачивания (до 10)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex gap-2">
+                  <Input
+                    value={newFileName}
+                    onChange={(e) => setNewFileName(e.target.value)}
+                    placeholder="Название файла (например: 'Инструкция.pdf')"
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    onClick={addFile}
+                    disabled={files.length >= 10}
+                    variant="outline"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Добавить
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {files.map((file, index) => (
+                    <Badge key={index} variant="secondary" className="text-sm">
+                      {file}
+                      <button
+                        type="button"
+                        onClick={() => removeFile(index)}
+                        className="ml-2 text-red-500 hover:text-red-700"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="description" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Подробное описание с форматированием</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <RichTextEditor
+                  content={detailedDescription}
+                  onChange={setDetailedDescription}
+                  placeholder="Введите подробное описание товара с возможностью форматирования..."
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="specs" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Технические характеристики</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                  <Input
+                    value={newSpecKey}
+                    onChange={(e) => setNewSpecKey(e.target.value)}
+                    placeholder="Название характеристики"
+                  />
+                  <Input
+                    value={newSpecValue}
+                    onChange={(e) => setNewSpecValue(e.target.value)}
+                    placeholder="Значение"
+                  />
+                  <Button type="button" onClick={addSpecification} variant="outline">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Добавить
+                  </Button>
+                </div>
                 <div className="space-y-2">
                   {Object.entries(specifications).map(([key, value]) => (
-                    <div key={key} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div key={key} className="flex items-center justify-between p-3 border rounded">
                       <div>
-                        <span className="font-medium">{key}:</span>
-                        <span className="ml-2 text-gray-600">{value}</span>
+                        <span className="font-medium">{key}:</span> {value}
                       </div>
                       <Button
                         type="button"
-                        variant="ghost"
+                        variant="outline"
                         size="sm"
                         onClick={() => removeSpecification(key)}
                       >
@@ -299,130 +431,36 @@ export default function AdminProductForm({ product, onSuccess, onCancel }: Admin
                     </div>
                   ))}
                 </div>
-              </div>
-            </TabsContent>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-            <TabsContent value="media" className="space-y-4">
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Дополнительные изображения</h3>
-                
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="URL изображения"
-                    value={newImageUrl}
-                    onChange={(e) => setNewImageUrl(e.target.value)}
-                    className="flex-1"
-                  />
-                  <Button type="button" onClick={addImage}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Добавить
-                  </Button>
-                </div>
+          <TabsContent value="warranty" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Гарантия и условия возврата</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <RichTextEditor
+                  content={warranty}
+                  onChange={setWarranty}
+                  placeholder="Введите информацию о гарантии и условиях возврата..."
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {images.map((image, index) => (
-                    <div key={index} className="relative">
-                      <img
-                        src={image}
-                        alt={`Product image ${index + 1}`}
-                        className="w-full h-32 object-cover rounded-lg"
-                        onError={(e) => {
-                          e.currentTarget.src = '/placeholder-product.jpg'
-                        }}
-                      />
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="sm"
-                        className="absolute top-2 right-2"
-                        onClick={() => removeImage(index)}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="files" className="space-y-4">
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Прикрепленные файлы</h3>
-                
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Название файла или URL"
-                    value={newFileName}
-                    onChange={(e) => setNewFileName(e.target.value)}
-                    className="flex-1"
-                  />
-                  <Button type="button" onClick={addFile}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Добавить
-                  </Button>
-                </div>
-
-                <div className="space-y-2">
-                  {files.map((file, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <FileText className="h-5 w-5 text-gray-500" />
-                        <span className="text-sm font-medium">{file}</span>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeFile(index)}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="content" className="space-y-4">
-              <div className="space-y-6">
-                <div className="space-y-2">
-                  <Label>Подробное описание</Label>
-                  <RichTextEditor
-                    content={detailedDescription}
-                    onChange={setDetailedDescription}
-                    placeholder="Введите подробное описание товара..."
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Гарантии и возврат</Label>
-                  <RichTextEditor
-                    content={warranty}
-                    onChange={setWarranty}
-                    placeholder="Введите информацию о гарантиях и возврате..."
-                  />
-                </div>
-              </div>
-            </TabsContent>
-          </Tabs>
-
-          <div className="flex justify-end space-x-4 pt-6 border-t">
-            <Button type="button" variant="outline" onClick={onCancel}>
-              Отмена
-            </Button>
-            <Button
-              type="submit"
-              disabled={createMutation.isPending || updateMutation.isPending}
-            >
-              {createMutation.isPending || updateMutation.isPending
-                ? 'Сохранение...'
-                : product
-                ? 'Обновить продукт'
-                : 'Создать продукт'}
-            </Button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
+        <div className="flex justify-end gap-4 pt-6 border-t">
+          <Button type="button" variant="outline" onClick={onCancel}>
+            Отмена
+          </Button>
+          <Button type="submit" disabled={isLoading}>
+            <Save className="h-4 w-4 mr-2" />
+            {isLoading ? 'Сохранение...' : product ? 'Обновить товар' : 'Создать товар'}
+          </Button>
+        </div>
+      </form>
+    </div>
   )
 }
