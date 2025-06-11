@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Checkbox } from '@/components/ui/checkbox'
 import { RichTextEditor } from '@/components/ui/rich-text-editor'
+import { FileUpload } from '@/components/ui/file-upload'
 import { Badge } from '@/components/ui/badge'
 import { X, Plus, Upload, FileText, Image, Save, ArrowLeft } from 'lucide-react'
 import { insertProductSchema, type InsertProduct, type Product, type Category } from '@shared/schema'
@@ -44,8 +45,7 @@ export default function AdminProductForm({ product, onSuccess, onCancel }: Admin
   const [files, setFiles] = useState<string[]>(product?.files || [])
   const [newSpecKey, setNewSpecKey] = useState('')
   const [newSpecValue, setNewSpecValue] = useState('')
-  const [newImageUrl, setNewImageUrl] = useState('')
-  const [newFileName, setNewFileName] = useState('')
+
   const [detailedDescription, setDetailedDescription] = useState(product?.detailedDescription || '')
   const [warranty, setWarranty] = useState(product?.warranty || '')
 
@@ -128,26 +128,12 @@ export default function AdminProductForm({ product, onSuccess, onCancel }: Admin
     })
   }
 
-  const addImage = () => {
-    if (newImageUrl && images.length < 10) {
-      setImages(prev => [...prev, newImageUrl])
-      setNewImageUrl('')
-    }
+  const handleImagesChange = (newImages: string[]) => {
+    setImages(newImages)
   }
 
-  const removeImage = (index: number) => {
-    setImages(prev => prev.filter((_, i) => i !== index))
-  }
-
-  const addFile = () => {
-    if (newFileName && files.length < 10) {
-      setFiles(prev => [...prev, newFileName])
-      setNewFileName('')
-    }
-  }
-
-  const removeFile = (index: number) => {
-    setFiles(prev => prev.filter((_, i) => i !== index))
+  const handleFilesChange = (newFiles: string[]) => {
+    setFiles(newFiles)
   }
 
   const onSubmit = (data: ProductFormData) => {

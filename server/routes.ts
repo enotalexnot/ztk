@@ -1,10 +1,13 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { upload } from "./upload";
 import { insertInquirySchema, insertProductSchema, insertCategorySchema, insertSubcategorySchema, insertNewsSchema, insertArticleSchema, insertAdminSchema, insertStaticPageSchema } from "@shared/schema";
 import { z } from "zod";
 import { hashPassword, createAdminSession, validateSession, deleteSession } from "./auth";
 import cookieParser from "cookie-parser";
+import path from "path";
+import express from "express";
 
 // Middleware for admin authentication
 async function requireAdmin(req: any, res: any, next: any) {
@@ -232,6 +235,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to create subcategory" });
     }
   });
+
+  // File upload route
+  app.post("/api/upload", upload.single('file'), (req: any, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      const productName = req.body.productName || 'default';
+      const type = req.body.type || 'files';
+      
+      // Создаем полный путь включая папку товара
+      const transliteratedName = req.file.destination.split(path.sep).slice(-2).join('/');
+      const relativePath = `/uploads/${transliteratedName}/${req.file.filename}`;
+      
+      res.json({ 
+        filePath: relativePath,
+        originalName: req.file.originalname,
+        size: req.file.size
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Upload failed" });
+    }
+  });
+
+  // Статические файлы для загрузок
+  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
   // Admin routes - Products
   app.post("/api/admin/products", requireAdmin, async (req: any, res) => {
