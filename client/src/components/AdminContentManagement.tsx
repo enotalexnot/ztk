@@ -53,22 +53,22 @@ export default function AdminContentManagement() {
   const queryClient = useQueryClient();
 
   // Site Settings
-  const { data: siteSettings = [], isLoading: settingsLoading } = useQuery({
+  const { data: siteSettings, isLoading: settingsLoading } = useQuery<SiteSettings[]>({
     queryKey: ["/api/site-settings"],
   });
 
   // Menu Items
-  const { data: menuItems = [], isLoading: menuLoading } = useQuery({
+  const { data: menuItems, isLoading: menuLoading } = useQuery<MenuItem[]>({
     queryKey: ["/api/menu-items"],
   });
 
   // Slider Items  
-  const { data: sliderItems = [], isLoading: sliderLoading } = useQuery({
+  const { data: sliderItems, isLoading: sliderLoading } = useQuery<SliderItem[]>({
     queryKey: ["/api/slider-items"],
   });
 
   // Homepage Content
-  const { data: homepageContent = [], isLoading: contentLoading } = useQuery({
+  const { data: homepageContent, isLoading: contentLoading } = useQuery<HomepageContent[]>({
     queryKey: ["/api/homepage-content"],
   });
 
@@ -272,7 +272,7 @@ export default function AdminContentManagement() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {siteSettings.map((setting: SiteSettings) => (
+              {siteSettings?.map((setting: SiteSettings) => (
                 <div key={setting.key} className="grid grid-cols-3 gap-4 items-center">
                   <Label className="font-medium">{setting.description}</Label>
                   <div className="col-span-2 flex gap-2">
@@ -305,6 +305,98 @@ export default function AdminContentManagement() {
                     >
                       <Save className="h-4 w-4" />
                     </Button>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="homepage" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Управление контентом главной страницы</CardTitle>
+              <CardDescription>
+                Редактируйте заголовки, описания и контент секций главной страницы
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {homepageContent?.map((content: HomepageContent) => (
+                <div key={content.sectionKey} className="border rounded-lg p-4">
+                  <div className="grid grid-cols-1 gap-4">
+                    <div>
+                      <Label className="font-medium text-sm text-muted-foreground">
+                        Раздел: {content.sectionKey}
+                      </Label>
+                    </div>
+                    <div className="grid grid-cols-1 gap-3">
+                      <div>
+                        <Label>Заголовок</Label>
+                        <Input
+                          value={editingContent[content.sectionKey]?.title ?? content.title}
+                          onChange={(e) => setEditingContent(prev => ({
+                            ...prev,
+                            [content.sectionKey]: {
+                              ...prev[content.sectionKey],
+                              title: e.target.value
+                            }
+                          }))}
+                          placeholder="Заголовок раздела"
+                        />
+                      </div>
+                      <div>
+                        <Label>Описание/Контент</Label>
+                        <Textarea
+                          value={editingContent[content.sectionKey]?.content ?? content.content ?? ''}
+                          onChange={(e) => setEditingContent(prev => ({
+                            ...prev,
+                            [content.sectionKey]: {
+                              ...prev[content.sectionKey],
+                              content: e.target.value
+                            }
+                          }))}
+                          placeholder="Содержимое раздела"
+                          rows={3}
+                        />
+                      </div>
+                      <div>
+                        <Label>URL изображения (опционально)</Label>
+                        <Input
+                          value={editingContent[content.sectionKey]?.imageUrl ?? content.imageUrl ?? ''}
+                          onChange={(e) => setEditingContent(prev => ({
+                            ...prev,
+                            [content.sectionKey]: {
+                              ...prev[content.sectionKey],
+                              imageUrl: e.target.value
+                            }
+                          }))}
+                          placeholder="https://example.com/image.jpg"
+                        />
+                      </div>
+                      <Button
+                        onClick={() => {
+                          const data = editingContent[content.sectionKey] || {};
+                          updateHomepageContentMutation.mutate({
+                            sectionKey: content.sectionKey,
+                            data: {
+                              title: data.title ?? content.title,
+                              content: data.content ?? content.content,
+                              imageUrl: data.imageUrl ?? content.imageUrl
+                            }
+                          });
+                          setEditingContent(prev => {
+                            const newState = { ...prev };
+                            delete newState[content.sectionKey];
+                            return newState;
+                          });
+                        }}
+                        disabled={updateHomepageContentMutation.isPending}
+                        className="w-fit"
+                      >
+                        <Save className="h-4 w-4 mr-2" />
+                        Сохранить изменения
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))}
