@@ -94,6 +94,25 @@ export const sessions = pgTable("sessions", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const partners = pgTable("partners", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  imageUrl: text("image_url"),
+  websiteUrl: text("website_url"),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const homepageContent = pgTable("homepage_content", {
+  id: serial("id").primaryKey(),
+  sectionKey: text("section_key").notNull().unique(),
+  title: text("title").notNull(),
+  content: text("content"),
+  imageUrl: text("image_url"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
 });
@@ -141,6 +160,17 @@ export const insertSessionSchema = createInsertSchema(sessions).omit({
   createdAt: true,
 });
 
+export const insertPartnerSchema = createInsertSchema(partners).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertHomepageContentSchema = createInsertSchema(homepageContent).omit({
+  id: true,
+  updatedAt: true,
+});
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 
@@ -170,3 +200,9 @@ export type InsertStaticPage = z.infer<typeof insertStaticPageSchema>;
 
 export type Session = typeof sessions.$inferSelect;
 export type InsertSession = z.infer<typeof insertSessionSchema>;
+
+export type Partner = typeof partners.$inferSelect;
+export type InsertPartner = z.infer<typeof insertPartnerSchema>;
+
+export type HomepageContent = typeof homepageContent.$inferSelect;
+export type InsertHomepageContent = z.infer<typeof insertHomepageContentSchema>;
