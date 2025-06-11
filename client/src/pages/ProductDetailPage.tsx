@@ -135,12 +135,12 @@ export default function ProductDetailPage() {
             </h1>
             {product.brand && (
               <p className="text-lg text-gray-600 dark:text-gray-400 mb-4">
-                {t.brand}: {product.brand}
+                Бренд: {product.brand}
               </p>
             )}
             {product.model && (
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                {t.model}: {product.model}
+                Модель: {product.model}
               </p>
             )}
           </div>
@@ -161,7 +161,7 @@ export default function ProductDetailPage() {
           <div className="flex flex-wrap gap-3">
             <Button size="lg" className="flex-1 min-w-[200px]">
               <ShoppingCart className="mr-2 h-5 w-5" />
-              {t.addToCart}
+              В корзину
             </Button>
             <Button variant="outline" size="lg">
               <Heart className="h-5 w-5" />
@@ -175,7 +175,7 @@ export default function ProductDetailPage() {
           {Object.keys(specifications).length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">{t.keyCharacteristics}</CardTitle>
+                <CardTitle className="text-lg">Основные характеристики</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
@@ -195,10 +195,10 @@ export default function ProductDetailPage() {
       {/* Detailed Information Tabs */}
       <Tabs defaultValue="description" className="w-full">
         <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="description">{t.description}</TabsTrigger>
-          <TabsTrigger value="specifications">{t.specifications}</TabsTrigger>
-          <TabsTrigger value="files">{t.files}</TabsTrigger>
-          <TabsTrigger value="warranty">{t.warranty}</TabsTrigger>
+          <TabsTrigger value="description">Описание</TabsTrigger>
+          <TabsTrigger value="specifications">Характеристики</TabsTrigger>
+          <TabsTrigger value="files">Файлы</TabsTrigger>
+          <TabsTrigger value="warranty">Гарантии и возврат</TabsTrigger>
         </TabsList>
 
         <TabsContent value="description" className="mt-6">
@@ -211,7 +211,7 @@ export default function ProductDetailPage() {
                 />
               ) : (
                 <div className="prose prose-sm dark:prose-invert">
-                  <p>{product.description || t.noDetailedDescription}</p>
+                  <p>{product.description || "Подробное описание не указано"}</p>
                 </div>
               )}
             </CardContent>
@@ -231,7 +231,7 @@ export default function ProductDetailPage() {
                   ))}
                 </div>
               ) : (
-                <p className="text-gray-600 dark:text-gray-400">{t.noSpecifications}</p>
+                <p className="text-gray-600 dark:text-gray-400">Технические характеристики не указаны</p>
               )}
             </CardContent>
           </Card>
@@ -250,13 +250,13 @@ export default function ProductDetailPage() {
                       </div>
                       <Button variant="outline" size="sm">
                         <Download className="h-4 w-4 mr-2" />
-                        {t.download}
+                        Скачать
                       </Button>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-gray-600 dark:text-gray-400">{t.noFiles}</p>
+                <p className="text-gray-600 dark:text-gray-400">Файлы не прикреплены</p>
               )}
             </CardContent>
           </Card>
@@ -271,7 +271,7 @@ export default function ProductDetailPage() {
                   dangerouslySetInnerHTML={{ __html: product.warranty }}
                 />
               ) : (
-                <p className="text-gray-600 dark:text-gray-400">{t.noWarrantyInfo}</p>
+                <p className="text-gray-600 dark:text-gray-400">Информация о гарантии не указана</p>
               )}
             </CardContent>
           </Card>
