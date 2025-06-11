@@ -285,38 +285,15 @@ export default function AdminProductForm({ product, onSuccess, onCancel }: Admin
                   Дополнительные изображения (до 10)
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex gap-2">
-                  <Input
-                    value={newImageUrl}
-                    onChange={(e) => setNewImageUrl(e.target.value)}
-                    placeholder="URL изображения"
-                    className="flex-1"
-                  />
-                  <Button
-                    type="button"
-                    onClick={addImage}
-                    disabled={images.length >= 10}
-                    variant="outline"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Добавить
-                  </Button>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {images.map((image, index) => (
-                    <Badge key={index} variant="secondary" className="text-sm">
-                      {image.length > 50 ? `${image.substring(0, 50)}...` : image}
-                      <button
-                        type="button"
-                        onClick={() => removeImage(index)}
-                        className="ml-2 text-red-500 hover:text-red-700"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </Badge>
-                  ))}
-                </div>
+              <CardContent>
+                <FileUpload
+                  files={images}
+                  onChange={handleImagesChange}
+                  acceptedTypes={['image/*']}
+                  maxFiles={10}
+                  type="images"
+                  productName={form.watch('name') || 'default'}
+                />
               </CardContent>
             </Card>
 
@@ -327,38 +304,15 @@ export default function AdminProductForm({ product, onSuccess, onCancel }: Admin
                   Файлы для скачивания (до 10)
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex gap-2">
-                  <Input
-                    value={newFileName}
-                    onChange={(e) => setNewFileName(e.target.value)}
-                    placeholder="Название файла (например: 'Инструкция.pdf')"
-                    className="flex-1"
-                  />
-                  <Button
-                    type="button"
-                    onClick={addFile}
-                    disabled={files.length >= 10}
-                    variant="outline"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Добавить
-                  </Button>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {files.map((file, index) => (
-                    <Badge key={index} variant="secondary" className="text-sm">
-                      {file}
-                      <button
-                        type="button"
-                        onClick={() => removeFile(index)}
-                        className="ml-2 text-red-500 hover:text-red-700"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </Badge>
-                  ))}
-                </div>
+              <CardContent>
+                <FileUpload
+                  files={files}
+                  onChange={handleFilesChange}
+                  acceptedTypes={['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/zip', 'text/plain']}
+                  maxFiles={10}
+                  type="files"
+                  productName={form.watch('name') || 'default'}
+                />
               </CardContent>
             </Card>
           </TabsContent>
