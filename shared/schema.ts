@@ -100,6 +100,8 @@ export const insertUserSchema = createInsertSchema(users).omit({
 
 export const insertProductSchema = createInsertSchema(products).omit({
   id: true,
+  createdAt: true,
+  updatedAt: true,
 });
 
 export const insertSubcategorySchema = createInsertSchema(subcategories).omit({
