@@ -149,7 +149,7 @@ export default function HeroSection() {
 
           {/* Categories Sidebar */}
           <div className="space-y-4">
-            {categories?.slice(0, 3).map((category) => {
+            {categories?.slice(0, 3).map((category: Category) => {
               const IconComponent = iconMap[category.icon as keyof typeof iconMap] || Zap;
               
               return (
