@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { LogOut, Plus, Pencil, Trash2, Package, FileText, MessageSquare, Settings, FolderOpen, Newspaper } from "lucide-react";
 import AdminProductForm from "@/components/AdminProductForm";
+import AdminContentManagement from "@/components/AdminContentManagement";
 import type { InsertProduct, InsertCategory, InsertNews, InsertArticle, InsertStaticPage, Product, Category, News, Article, StaticPage, Inquiry } from "@shared/schema";
 
 function LoginForm({ onLogin }: { onLogin: (admin: any) => void }) {
@@ -1045,7 +1046,7 @@ function StaticPagesManagement() {
 }
 
 function AdminDashboard({ admin, onLogout }: { admin: any; onLogout: () => void }) {
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const [activeTab, setActiveTab] = useState("content");
   const { toast } = useToast();
 
   const handleLogout = async () => {
@@ -1090,9 +1091,9 @@ function AdminDashboard({ admin, onLogout }: { admin: any; onLogout: () => void 
       <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-7">
-            <TabsTrigger value="dashboard">
+            <TabsTrigger value="content">
               <Settings className="mr-2 h-4 w-4" />
-              Панель
+              Контент
             </TabsTrigger>
             <TabsTrigger value="products">
               <Package className="mr-2 h-4 w-4" />
@@ -1121,19 +1122,8 @@ function AdminDashboard({ admin, onLogout }: { admin: any; onLogout: () => void 
           </TabsList>
 
           <div className="mt-6">
-            <TabsContent value="dashboard">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Добро пожаловать!</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-gray-600">
-                      Используйте вкладки выше для управления содержимым сайта.
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
+            <TabsContent value="content">
+              <AdminContentManagement />
             </TabsContent>
 
             <TabsContent value="products">
