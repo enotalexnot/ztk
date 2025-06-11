@@ -92,6 +92,26 @@ export interface IStorage {
   getHomepageContentByKey(key: string): Promise<HomepageContent | undefined>;
   createHomepageContent(content: InsertHomepageContent): Promise<HomepageContent>;
   updateHomepageContent(key: string, content: Partial<InsertHomepageContent>): Promise<HomepageContent>;
+
+  // Site Settings
+  getSiteSettings(): Promise<SiteSettings[]>;
+  getSiteSetting(key: string): Promise<SiteSettings | undefined>;
+  updateSiteSetting(key: string, value: string): Promise<SiteSettings>;
+  createSiteSetting(setting: InsertSiteSettings): Promise<SiteSettings>;
+
+  // Menu Items
+  getMenuItems(): Promise<MenuItem[]>;
+  getMenuItem(id: number): Promise<MenuItem | undefined>;
+  createMenuItem(item: InsertMenuItem): Promise<MenuItem>;
+  updateMenuItem(id: number, item: Partial<InsertMenuItem>): Promise<MenuItem>;
+  deleteMenuItem(id: number): Promise<void>;
+
+  // Slider Items
+  getSliderItems(): Promise<SliderItem[]>;
+  getSliderItem(id: number): Promise<SliderItem | undefined>;
+  createSliderItem(item: InsertSliderItem): Promise<SliderItem>;
+  updateSliderItem(id: number, item: Partial<InsertSliderItem>): Promise<SliderItem>;
+  deleteSliderItem(id: number): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -584,6 +604,83 @@ export class DatabaseStorage implements IStorage {
       updatedAt: new Date()
     }).where(eq(homepageContent.sectionKey, key)).returning();
     return content;
+  }
+
+  // Site Settings
+  async getSiteSettings(): Promise<SiteSettings[]> {
+    return await db.select().from(siteSettings);
+  }
+
+  async getSiteSetting(key: string): Promise<SiteSettings | undefined> {
+    const [setting] = await db.select().from(siteSettings).where(eq(siteSettings.key, key));
+    return setting;
+  }
+
+  async updateSiteSetting(key: string, value: string): Promise<SiteSettings> {
+    const [setting] = await db.update(siteSettings).set({
+      value,
+      updatedAt: new Date()
+    }).where(eq(siteSettings.key, key)).returning();
+    return setting;
+  }
+
+  async createSiteSetting(insertSetting: InsertSiteSettings): Promise<SiteSettings> {
+    const [setting] = await db.insert(siteSettings).values(insertSetting).returning();
+    return setting;
+  }
+
+  // Menu Items
+  async getMenuItems(): Promise<MenuItem[]> {
+    return await db.select().from(menuItems).orderBy(menuItems.order);
+  }
+
+  async getMenuItem(id: number): Promise<MenuItem | undefined> {
+    const [item] = await db.select().from(menuItems).where(eq(menuItems.id, id));
+    return item;
+  }
+
+  async createMenuItem(insertItem: InsertMenuItem): Promise<MenuItem> {
+    const [item] = await db.insert(menuItems).values(insertItem).returning();
+    return item;
+  }
+
+  async updateMenuItem(id: number, updateData: Partial<InsertMenuItem>): Promise<MenuItem> {
+    const [item] = await db.update(menuItems).set({
+      ...updateData,
+      updatedAt: new Date()
+    }).where(eq(menuItems.id, id)).returning();
+    return item;
+  }
+
+  async deleteMenuItem(id: number): Promise<void> {
+    await db.delete(menuItems).where(eq(menuItems.id, id));
+  }
+
+  // Slider Items
+  async getSliderItems(): Promise<SliderItem[]> {
+    return await db.select().from(sliderItems).where(eq(sliderItems.isActive, true)).orderBy(sliderItems.order);
+  }
+
+  async getSliderItem(id: number): Promise<SliderItem | undefined> {
+    const [item] = await db.select().from(sliderItems).where(eq(sliderItems.id, id));
+    return item;
+  }
+
+  async createSliderItem(insertItem: InsertSliderItem): Promise<SliderItem> {
+    const [item] = await db.insert(sliderItems).values(insertItem).returning();
+    return item;
+  }
+
+  async updateSliderItem(id: number, updateData: Partial<InsertSliderItem>): Promise<SliderItem> {
+    const [item] = await db.update(sliderItems).set({
+      ...updateData,
+      updatedAt: new Date()
+    }).where(eq(sliderItems.id, id)).returning();
+    return item;
+  }
+
+  async deleteSliderItem(id: number): Promise<void> {
+    await db.delete(sliderItems).where(eq(sliderItems.id, id));
   }
 }
 
