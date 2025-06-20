@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="30f00aa8-f5a6-4b8a-9a4a-ada32cb29348" name="ETK">
+        <fileTransfer accessType="SFTP" host="95.163.231.219" port="22" sshConfigId="db40e9bf-ee95-48b3-8921-0c8ce30f0893" sshConfig="ETK">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="0" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>

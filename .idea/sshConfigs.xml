@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="SshConfigs">
+    <configs>
+      <sshConfig authType="PASSWORD" host="95.163.231.219" id="db40e9bf-ee95-48b3-8921-0c8ce30f0893" port="22" customName="ETK" nameFormat="CUSTOM" username="root" useOpenSSHConfig="true">
+        <option name="customName" value="ETK" />
+      </sshConfig>
+    </configs>
+  </component>
+</project>
